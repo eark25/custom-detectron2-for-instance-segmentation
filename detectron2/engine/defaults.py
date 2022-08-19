@@ -460,7 +460,8 @@ class DefaultTrainer(TrainerBase):
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
             # run writers in the end, so that evaluation metrics are written
-            ret.append(hooks.PeriodicWriter(self.build_writers(), period=20))
+            from detectron2.data import DatasetCatalog
+            ret.append(hooks.PeriodicWriter(self.build_writers(), period=int(len(DatasetCatalog.get(cfg.DATASETS.TRAIN[0])) / cfg.SOLVER.IMS_PER_BATCH))) # <<<<<<<<<<<<<<<<<<<<<
         return ret
 
     def build_writers(self):

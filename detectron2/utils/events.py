@@ -146,13 +146,24 @@ class TensorboardXWriter(EventWriter):
 
         self._writer = SummaryWriter(log_dir, **kwargs)
         self._last_write = -1
+        self._for_last_epoch = None # <<<<<<<<<<<<
 
     def write(self):
         storage = get_event_storage()
+        # print(storage.latest_with_smoothing_hint(self._window_size).items()) # <<<<<<<<<<<<<<<<<<<<<<<<
+        # import sys
+        # sys.exit(0)
         new_last_write = self._last_write
         for k, (v, iter) in storage.latest_with_smoothing_hint(self._window_size).items():
             if iter > self._last_write:
                 self._writer.add_scalar(k, v, iter)
+                if (iter - self._last_write) != 1:
+                    self._writer.add_scalar('iteration', iter + 1, iter) # <<<<<<<<<<<<<<<<<<<<<<<<
+                    self._writer.add_scalar('epoch', (iter + 1) / (iter - self._last_write), iter) # <<<<<<<<<<<<<<<<<<<<<<<<
+                    self._for_last_epoch = self._last_write
+                else:
+                    self._writer.add_scalar('iteration', iter, iter) # <<<<<<<<<<<<<<<<<<<<<<<<
+                    self._writer.add_scalar('epoch', iter / (iter - (self._for_last_epoch + 1)), iter) # <<<<<<<<<<<<<<<<<<<<<<<<
                 new_last_write = max(new_last_write, iter)
         self._last_write = new_last_write
 
