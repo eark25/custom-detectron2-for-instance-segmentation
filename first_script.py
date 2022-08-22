@@ -131,20 +131,20 @@ def get_balloon_dicts(img_dir):
         annos = v["regions"]
         objs = []
         for _, anno in annos.items():
-            print(anno)
+            # print(anno)
             assert not anno["region_attributes"]
             anno = anno["shape_attributes"]
-            print(anno)
+            # print(anno)
             px = anno["all_points_x"]
             py = anno["all_points_y"]
-            print(px)
-            print(py)
+            # print(px)
+            # print(py)
             poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
-            print(poly)
+            # print(poly)
             poly = [p for x in poly for p in x]
-            print(poly)
-            import sys
-            sys.exit(0)
+            # print(poly)
+            # import sys
+            # sys.exit(0)
 
             obj = {
                 "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
