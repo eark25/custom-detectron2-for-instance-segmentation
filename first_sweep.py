@@ -244,9 +244,9 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon). (see https:/
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.MODEL.DEVICE = 'cuda:1'
-# print(cfg)
-# import sys
-# sys.exit(0)
+print(cfg)
+import sys
+sys.exit(0)
 
 import wandb
 wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
@@ -254,4 +254,169 @@ os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 trainer = Trainer(cfg) 
 trainer.resume_or_load(resume=False)
 trainer.train()
+
+################################################################################################ train_args
+
+import argparse
+import warnings
+import mmcv
+from mmcv import Config
+
+from mmseg.datasets import build_dataset
+from mmseg.models import build_segmentor
+from mmseg.apis import train_segmentor
+
+import os.path as osp
+
+import copy
+
+import wandb
+
+'''
+learning rate - 1e-4 - 1 ?
+batch size - 4/8/16/32
+backbone - resnet 18/34/50/101
+ignore bg - True/False
+crop size - 256/512/1024
+keep_ratio resize - True/False
+lr_scheduler - poly/none
+momentum - 0-1
+weight_decay 1e-8/1e-4/1e-2
+'''
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Train the model on images and target masks')
+    parser.add_argument('--learning_rate', '-lr', dest='learning_rate', metavar='LR', type=float, default=1e-1, help='Learning rate')
+    parser.add_argument('--batch_size', '-bs', dest='batch_size', metavar='BS', type=int, default=32, help='Batch size')
+    parser.add_argument('--backbone', '-bb', dest='backbone', metavar='BB', type=str, default='r50', help='Backbone')
+    parser.add_argument('--ignore_bg', '-ib', dest='ignore_bg', metavar='IB', type=bool, default=False, help='Ignore background')
+    parser.add_argument('--crop_size', '-cs', dest='crop_size', metavar='CS', type=int, default=512, help='Crop size')
+    parser.add_argument('--keep_ratio', '-kr', dest='keep_ratio', metavar='KR', type=bool, default=False, help='Keep ratio')
+    parser.add_argument('--scheduler', '-sch', dest='lr_scheduler', metavar='SCH', type=str, default=None, help='Learning rate scheduler')
+    parser.add_argument('--momentum', '-mm', dest='momentum', metavar='MM', type=float, default=0.9, help='Momentum')
+    parser.add_argument('--weight_decay', '-wd', dest='weight_decay', metavar='WD', type=float, default=1e-8, help='Weight decay')
+    # what is nargs metavar action choices?
+    # nargs 
+    # - '+'/'*' multiple
+    # - '?' use default single
+    # metavar displayed name in -h
+    # action
+
+    return parser.parse_args()
+
+def main():
+    # get args here
+    args = get_args()
+
+    # get cfg here
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+
+    cfg = Config.fromfile('../configs/deeplabv3plus/mydeeplabv3plus.py')
+
+    # apply argparsing to cfg here
+    if args.learning_rate:
+        cfg.optimizer.lr = args.learning_rate
+        cfg.lr_config.min_lr = args.learning_rate
+    if args.batch_size:
+        cfg.optimizer_config.cumulative_iters = int(args.batch_size / cfg.data.samples_per_gpu)
+    if args.backbone:
+        if args.backbone == 'r50':
+            cfg.model.pretrained = 'open-mmlab://resnet50_v1c'
+            cfg.model.backbone.depth = 50
+        if args.backbone == 'r101':
+            cfg.model.pretrained = 'open-mmlab://resnet101_v1c'
+            cfg.model.backbone.depth = 101
+    if args.ignore_bg:
+        cfg.model.decode_head.ignore_index = 0
+        cfg.model.decode_head.loss_decode[0].avg_non_ignore = True
+        cfg.model.decode_head.loss_decode[1].ignore_index = 0
+        cfg.model.auxiliary_head.ignore_index = 0
+        cfg.model.auxiliary_head.loss_decode[0].avg_non_ignore = True
+        cfg.model.auxiliary_head.loss_decode[1].ignore_index = 0
+        cfg.data.train.pipeline[3].ignore_index = 0
+        cfg.data.train.pipeline[5].seg_pad_val = 0
+        cfg.data.train.pipeline[8].seg_pad_val = 0
+        cfg.val_pipeline[3].ignore_index = 0
+        cfg.val_pipeline[6].seg_pad_val = 0
+        cfg.data.val.type='BuildingFacadeBGDataset'
+        cfg.data.val.pipeline[2].transforms[0].ignore_index = 0
+        cfg.data.val.pipeline[2].transforms[2].seg_pad_val = 0
+        cfg.data.test.type='BuildingFacadeBGDataset'
+        cfg.data.test.pipeline[2].transforms[0].ignore_index = 0
+        cfg.data.test.pipeline[2].transforms[2].seg_pad_val = 0
+    # if args.crop_size:
+    #     cfg.crop_size = (args.crop_size, args.crop_size)
+    if args.keep_ratio:
+        cfg.data.train.pipeline[2].keep_ratio = True
+        # cfg.val_pipeline[2].keep_ratio = True
+    # if args.lr_scheduler:
+    if args.momentum:
+        cfg.optimizer.momentum = args.momentum
+    if args.weight_decay:
+        cfg.optimizer.weight_decay = args.weight_decay
+
+    ######################################################################
+    # wandb.init(project='DeepLabv3+', resume='allow', anonymous='must')
+
+    # print(cfg.pretty_text)
+    # import sys
+    # sys.exit(0)
+
+    # Build the dataset
+    # assign dataset catalog
+    for d in ["train", "val"]:
+        DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
+        MetadataCatalog.get("balloon_" + d).set(thing_classes=["balloon"], evaluator_type="coco")
+    balloon_metadata = MetadataCatalog.get("balloon_train")
+    balloon_train_dataset = len(DatasetCatalog.get("balloon_train"))
+    # evaluator_type = MetadataCatalog.get("balloon_val").evaluator_type
+    # print(balloon_metadata)
+    # print(len(balloon_train_dataset))
+    # import sys
+    # sys.exit(0)
+
+    # To verify the dataset is in correct format, let's visualize the annotations of randomly selected samples in the training set:
+    dataset_dicts = get_balloon_dicts("balloon/train")
+    for d in random.sample(dataset_dicts, 1):
+        # print(d["file_name"])
+        img = cv2.imread(d["file_name"])
+        visualizer = Visualizer(img[:, :, ::-1], metadata=balloon_metadata, scale=1.0)
+        out = visualizer.draw_dataset_dict(d)
+        # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
+
+    datasets = [build_dataset(cfg.data.train)]
+
+    # for val loss
+    if len(cfg.workflow) == 2:
+        val_dataset = copy.deepcopy(cfg.data.val)
+        val_dataset.pipeline = cfg.val_pipeline
+        datasets.append(build_dataset(val_dataset))
+        # datasets.append(build_dataset(cfg.data.val))
+
+    # Build the detector
+    trainer = Trainer(cfg) 
+
+    model = build_segmentor(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
+
+    # Add an attribute for visualization convenience
+    model.CLASSES = datasets[0].CLASSES
+
+    # Create work_dir
+    import wandb
+    wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+
+    mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+
+    # Train
+    trainer.resume_or_load(resume=False)
+    trainer.train()
+    
+    train_segmentor(model, datasets, cfg, distributed=False, validate=True, meta=dict())
+
+if __name__ == '__main__':
+    main()
+
+
 

@@ -19,7 +19,7 @@ from detectron2.engine import DefaultTrainer
 from detectron2.structures import BoxMode
 
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/show_img/example1.json'
+    json_file = '/root/detectron2/show_img/example_5400_morphed.json'
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
@@ -78,4 +78,4 @@ for d in random.sample(dataset_dicts, 1):
     img = cv2.imread(d["file_name"])
     visualizer = Visualizer(img[:, :, ::-1], metadata=crack_metadata, scale=1.0)
     out = visualizer.draw_dataset_dict(d)
-    cv2.imwrite('example1.jpg', out.get_image()[:, :, ::-1])
+    cv2.imwrite('example_5400_morphed.jpg', out.get_image()[:, :, ::-1])
