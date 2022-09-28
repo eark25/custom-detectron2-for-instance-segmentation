@@ -65,13 +65,13 @@ def get_balloon_dicts(img_dir):
     return dataset_dicts
 
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/crack_imgs/train/train.json'
+    json_file = '/root/detectron2/crack_imgs/{}/{}_nobg.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
     dataset_dicts = []
     # loop through each image
-    for idx, v in enumerate(imgs_anns["images"][:1]):
+    for idx, v in enumerate(imgs_anns["images"]): # add [:1] for 1 image
         record = {}
         
         filename = os.path.join('/root/detectron2/crack_imgs/train/images/', v['file_name'])
@@ -84,6 +84,7 @@ def get_crack_dicts(img_dir):
         record["width"] = width
 
         objs = []
+        # for obj in [seg for seg in imgs_anns['annotations'] if ((seg["image_id"] == record["image_id"]) and (seg["category_id"] != 0))]:
         for obj in [seg for seg in imgs_anns['annotations'] if seg["image_id"] == record["image_id"]]:
             px = []
             py = []
@@ -167,4 +168,4 @@ for d in random.sample(dataset_dicts, 1):
     img = cv2.imread(d["file_name"])
     visualizer = Visualizer(img[:, :, ::-1], metadata=crack_metadata, scale=1.0)
     out = visualizer.draw_dataset_dict(d)
-    cv2.imwrite('crack.jpg', out.get_image()[:, :, ::-1])
+    cv2.imwrite('crack_nobg.jpg', out.get_image()[:, :, ::-1])

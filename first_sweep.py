@@ -157,16 +157,16 @@ def get_balloon_dicts(img_dir):
     return dataset_dicts
 
 def get_crack_dicts(img_dir):
-    json_file = os.path.join(img_dir, "via_region_data.json")
+    json_file = '/root/detectron2/crack_imgs/{}/{}_nobg.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
     dataset_dicts = []
     # loop through each image
-    for idx, v in enumerate(imgs_anns.values()):
+    for idx, v in enumerate(imgs_anns["images"]): # add [:1] for 1 image
         record = {}
         
-        filename = os.path.join(img_dir, v["filename"])
+        filename = os.path.join('/root/detectron2/crack_imgs/train/images/', v['file_name'])
         height, width = cv2.imread(filename).shape[:2]
         
         # common fields
@@ -174,36 +174,29 @@ def get_crack_dicts(img_dir):
         record["image_id"] = idx
         record["height"] = height
         record["width"] = width
-      
-        annos = v["regions"]
-        objs = []
-        # loop through each object
-        for _, anno in annos.items():
-            assert not anno["region_attributes"]
-            anno = anno["shape_attributes"]
-            # px = [x1, . . . , xn]
-            px = anno["all_points_x"]
-            py = anno["all_points_y"]
-            # poly = [(x1, y1), . . . , (xn, yn)]
-            poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
-            # poly = [x1, y1, . . . , xn, yn]
-            poly = [p for x in poly for p in x]
 
-            obj = {
-                # generate bounding box from mask ?
-                "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                "category_id": 0,
-                # list[list[float]]
-                "segmentation": [poly],
-            }
-            # add an object dict to object list
+        objs = []
+        # for obj in [seg for seg in imgs_anns['annotations'] if ((seg["image_id"] == record["image_id"]) and (seg["category_id"] != 0))]:
+        for obj in [seg for seg in imgs_anns['annotations'] if seg["image_id"] == record["image_id"]]:
+            px = []
+            py = []
+            obj['bbox_mode'] = BoxMode.XYXY_ABS
+            for mask in obj['segmentation']:
+                for idx in range(len(mask)):
+                    if (idx % 2) == 0:
+                        px.append(mask[idx])
+                    else:
+                        py.append(mask[idx])
+                # print('mask', mask)
+                # print('px', px)
+                # print('py', py)
+            obj['bbox'] = [np.min(px), np.min(py), np.max(px), np.max(py)]
             objs.append(obj)
-        # list[dict]
+        
         record["annotations"] = objs
         dataset_dicts.append(record)
-    # return list[dict]
-    return dataset_dicts
+        # return list[dict]
+        return dataset_dicts
 
 for d in ["train", "val"]:
     DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
