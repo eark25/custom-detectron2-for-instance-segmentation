@@ -71,7 +71,7 @@ def get_crack_dicts(img_dir):
 
     dataset_dicts = []
     # loop through each image
-    for idx, v in enumerate(imgs_anns["images"]): # add [:1] for 1 image
+    for idx, v in enumerate(imgs_anns["images"][:1]): # add [:1] for 1 image
         record = {}
         
         filename = os.path.join('/root/detectron2/crack_imgs/train/images/', v['file_name'])
@@ -144,11 +144,11 @@ def get_one_crack_dicts(img_dir):
         record["annotations"] = imgs_anns['annotations']
         dataset_dicts.append(record)
         print('done')
-        # return list[dict]
-        return dataset_dicts
+    # return list[dict]
+    return dataset_dicts
 
 for d in ["train"]:
-    DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts("balloon/" + d))
+    DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts(d))
     MetadataCatalog.get("crack_" + d).set(thing_classes=["outlier", "crack"], evaluator_type="coco")
 crack_metadata = MetadataCatalog.get("crack_train")
 crack_train_dataset = len(DatasetCatalog.get("crack_train"))
@@ -159,7 +159,7 @@ crack_train_dataset = len(DatasetCatalog.get("crack_train"))
 # sys.exit(0)
 
 # To verify the dataset is in correct format, let's visualize the annotations of randomly selected samples in the training set:
-dataset_dicts = get_crack_dicts("balloon/train")
+dataset_dicts = get_crack_dicts("train")
 # print(dataset_dicts)
 # import sys
 # sys.exit(0)

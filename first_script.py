@@ -157,16 +157,23 @@ def get_balloon_dicts(img_dir):
     return dataset_dicts
 
 def get_crack_dicts(img_dir):
-    json_file = os.path.join(img_dir, "via_region_data.json")
+    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
     dataset_dicts = []
     # loop through each image
-    for idx, v in enumerate(imgs_anns.values()):
+    # for idx, v in enumerate(imgs_anns["images"]):
+    #     print(idx, v)
+    # import sys
+    # sys.exit(0)
+    for idx, v in enumerate(imgs_anns["images"]): # add [:1] for 1 image
         record = {}
         
-        filename = os.path.join(img_dir, v["filename"])
+        if 'noncrack' in v['file_name']:
+            filename = os.path.join('/root/detectron2/crack_imgs/{}/images/'.format(img_dir), v['file_name'] + '.jpg')
+        else:
+            filename = os.path.join('/root/detectron2/crack_imgs/{}/images/'.format(img_dir), v['file_name'])
         height, width = cv2.imread(filename).shape[:2]
         
         # common fields
@@ -174,76 +181,71 @@ def get_crack_dicts(img_dir):
         record["image_id"] = idx
         record["height"] = height
         record["width"] = width
-      
-        annos = v["regions"]
-        objs = []
-        # loop through each object
-        for _, anno in annos.items():
-            assert not anno["region_attributes"]
-            anno = anno["shape_attributes"]
-            # px = [x1, . . . , xn]
-            px = anno["all_points_x"]
-            py = anno["all_points_y"]
-            # poly = [(x1, y1), . . . , (xn, yn)]
-            poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
-            # poly = [x1, y1, . . . , xn, yn]
-            poly = [p for x in poly for p in x]
 
-            obj = {
-                # generate bounding box from mask ?
-                "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                "category_id": 0,
-                # list[list[float]]
-                "segmentation": [poly],
-            }
-            # add an object dict to object list
+        objs = []
+        # for obj in [seg for seg in imgs_anns['annotations'] if ((seg["image_id"] == record["image_id"]) and (seg["category_id"] != 0))]:
+        for obj in [seg for seg in imgs_anns['annotations'] if seg["image_id"] == record["image_id"]]:
+            px = []
+            py = []
+            obj['bbox_mode'] = BoxMode.XYXY_ABS
+            for mask in obj['segmentation']:
+                for idx in range(len(mask)):
+                    if (idx % 2) == 0:
+                        px.append(mask[idx])
+                    else:
+                        py.append(mask[idx])
+                # print('mask', mask)
+                # print('px', px)
+                # print('py', py)
+            obj['bbox'] = [np.min(px), np.min(py), np.max(px), np.max(py)]
             objs.append(obj)
-        # list[dict]
+        
         record["annotations"] = objs
         dataset_dicts.append(record)
     # return list[dict]
     return dataset_dicts
 
 for d in ["train", "val"]:
-    DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
-    MetadataCatalog.get("balloon_" + d).set(thing_classes=["balloon"], evaluator_type="coco")
-balloon_metadata = MetadataCatalog.get("balloon_train")
-balloon_train_dataset = len(DatasetCatalog.get("balloon_train"))
+    DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts(d))
+    MetadataCatalog.get("crack_" + d).set(thing_classes=["crack"], evaluator_type="coco")
+crack_train_dataset = len(DatasetCatalog.get("crack_train"))
+#     DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
+#     MetadataCatalog.get("balloon_" + d).set(thing_classes=["balloon"], evaluator_type="coco")
+# balloon_metadata = MetadataCatalog.get("balloon_train")
+# balloon_train_dataset = len(DatasetCatalog.get("balloon_train"))
 # evaluator_type = MetadataCatalog.get("balloon_val").evaluator_type
 # print(balloon_metadata)
 # print(len(balloon_train_dataset))
-# import sys
-# sys.exit(0)
 
 # To verify the dataset is in correct format, let's visualize the annotations of randomly selected samples in the training set:
-dataset_dicts = get_balloon_dicts("balloon/train")
-for d in random.sample(dataset_dicts, 1):
-    # print(d["file_name"])
-    img = cv2.imread(d["file_name"])
-    visualizer = Visualizer(img[:, :, ::-1], metadata=balloon_metadata, scale=1.0)
-    out = visualizer.draw_dataset_dict(d)
-    # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
+# dataset_dicts = get_balloon_dicts("balloon/train")
+# for d in random.sample(dataset_dicts, 1):
+#     # print(d["file_name"])
+#     img = cv2.imread(d["file_name"])
+#     visualizer = Visualizer(img[:, :, ::-1], metadata=balloon_metadata, scale=1.0)
+#     out = visualizer.draw_dataset_dict(d)
+#     # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
 
 # fine-tune a COCO-pretrained R50-FPN Mask R-CNN model on the balloon dataset. It takes ~2 minutes to train 300 iterations on a P100 GPU.
-epochs = 5
+epochs = 10
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.DATASETS.TRAIN = ("balloon_train",)
-cfg.DATASETS.TEST = ( "balloon_val",)
+cfg.DATASETS.TRAIN = ("crack_train",)
+cfg.DATASETS.TEST = ("crack_val",)
 cfg.DATALOADER.NUM_WORKERS = 0
 cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
-one_epoch = int(balloon_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
-cfg.SOLVER.BASE_LR = 0.00025  # pick a good LR
+one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
+cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
 cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
 cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
 cfg.SOLVER.STEPS = []        # do not decay learning rate
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.MODEL.DEVICE = 'cuda:1'
+cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # print(cfg)
 # import sys
 # sys.exit(0)
