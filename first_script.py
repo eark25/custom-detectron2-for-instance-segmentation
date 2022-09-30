@@ -236,7 +236,7 @@ cfg.DATALOADER.NUM_WORKERS = 0
 cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
-cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
+cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
 cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
 cfg.SOLVER.STEPS = []        # do not decay learning rate
@@ -246,6 +246,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.MODEL.DEVICE = 'cuda:1'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
+# cfg.OUTPUT_DIR
 # print(cfg)
 # import sys
 # sys.exit(0)

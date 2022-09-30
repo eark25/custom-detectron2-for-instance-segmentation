@@ -210,6 +210,8 @@ class CommonMetricPrinter(EventWriter):
         self._max_iter = max_iter
         self._window_size = window_size
         self._last_write = None  # (step, time) of last call to write(). Used to compute ETA
+        self._previous_write = -1
+        self._for_last_epoch = None # <<<<<<<<<<<<
 
     def _get_eta(self, storage) -> Optional[str]:
         if self._max_iter is None:
@@ -233,7 +235,19 @@ class CommonMetricPrinter(EventWriter):
 
     def write(self):
         storage = get_event_storage()
-        iteration = storage.iter
+        new_previous_write = self._previous_write
+        for k, (v, iter) in storage.latest_with_smoothing_hint(self._window_size).items():
+            if iter > self._previous_write:
+                if (iter - self._previous_write) != 1:
+                    iteration = iter + 1 # <<<<<<<<<<<<<<<<<<<<<<<<
+                    epoch = (iter + 1) / (iter - self._previous_write) # <<<<<<<<<<<<<<<<<<<<<<<<
+                    self._for_last_epoch = self._previous_write
+                else:
+                    iteration = iter # <<<<<<<<<<<<<<<<<<<<<<<<
+                    epoch = iter / (iter - (self._for_last_epoch + 1)) # <<<<<<<<<<<<<<<<<<<<<<<<
+                new_previous_write = max(new_previous_write, iter)
+        self._previous_write = new_previous_write
+        # iteration = storage.iter
         if iteration == self._max_iter:
             # This hook only reports training progress (loss, ETA, etc) but not other data,
             # therefore do not write anything after training succeeds, even if this method
@@ -264,9 +278,10 @@ class CommonMetricPrinter(EventWriter):
 
         # NOTE: max_mem is parsed by grep in "dev/parse_results.sh"
         self.logger.info(
-            " {eta}iter: {iter}  {losses}  {time}{data_time}lr: {lr}  {memory}".format(
+            " {eta}iter: {iter}  epoch: {ep}  {losses}  {time}{data_time}lr: {lr}  {memory}".format(
                 eta=f"eta: {eta_string}  " if eta_string else "",
                 iter=iteration,
+                ep=epoch,
                 losses="  ".join(
                     [
                         "{}: {:.4g}".format(k, v.median(self._window_size))
