@@ -250,17 +250,17 @@ cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
 # cfg.MODEL.PIXEL_STD = [38.6440, 38.8538, 41.1382]
-cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 832, 864, 928, 960, 992, 1024,)
+cfg.INPUT.MIN_SIZE_TRAIN = (256, 1024)
 # # Sample size of smallest side by choice or random selection from range give by
 # # INPUT.MIN_SIZE_TRAIN
-# cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "choice"
+cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "range"
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.INPUT.MIN_SIZE_TEST = 448
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_1'
+cfg.OUTPUT_DIR = 'output_3'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
