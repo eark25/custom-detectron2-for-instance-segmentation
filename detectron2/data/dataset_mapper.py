@@ -137,7 +137,7 @@ class DatasetMapper:
         # [(0,0), (2,0), (0,2)] cropped by a box [(1,0),(2,2)] (XYXY format). The tight
         # bounding box of the cropped triangle should be [(1,0),(2,1)], which is not equal to
         # the intersection of original bounding box and the cropping box.
-        if self.recompute_boxes:
+        if self.recompute_boxes and "gt_masks" in instances._fields: # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             instances.gt_boxes = instances.gt_masks.get_bounding_boxes()
         dataset_dict["instances"] = utils.filter_empty_instances(instances)
 
