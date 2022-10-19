@@ -227,7 +227,7 @@ crack_train_dataset = len(DatasetCatalog.get("crack_train"))
 #     # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
 
 # fine-tune a COCO-pretrained R50-FPN Mask R-CNN model on the balloon dataset. It takes ~2 minutes to train 300 iterations on a P100 GPU.
-epochs = 100
+epochs = 200
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.DATASETS.TRAIN = ("crack_train",)
@@ -245,8 +245,11 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:2'
+cfg.MODEL.DEVICE = 'cuda:1'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
+cfg.INPUT.CROP.ENABLED = True
+cfg.INPUT.CROP.SIZE = [0.9, 0.9]
+cfg.INPUT.CROP.TYPE = "relative_range"
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
 # cfg.MODEL.PIXEL_STD = [38.6440, 38.8538, 41.1382]
@@ -264,9 +267,13 @@ cfg.OUTPUT_DIR = 'output_1'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
-# print(cfg.INPUT.MAX_SIZE_TEST)
+# print(cfg)
 # import sys
 # sys.exit(0)
+
+import warnings
+from shapely.errors import ShapelyDeprecationWarning
+warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
 
 import wandb
 wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
