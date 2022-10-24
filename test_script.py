@@ -73,7 +73,7 @@ cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rc
 cfg.DATASETS.TRAIN = ("crack_train",)
 cfg.DATASETS.TEST = ("crack_test",)
 cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = os.path.join('output', "model_final.pth")  # path to the model we just trained
+cfg.MODEL.WEIGHTS = os.path.join('output_2', "model_final.pth")  # path to the model we just trained
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
@@ -97,10 +97,10 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.INPUT.MIN_SIZE_TEST = 512
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output'
+cfg.OUTPUT_DIR = 'output_2'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
@@ -108,13 +108,14 @@ cfg.OUTPUT_DIR = 'output'
 # import sys
 # sys.exit(0)
 
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7   # set a custom testing threshold
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 predictor = DefaultPredictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
 dataset_dicts = get_crack_dicts("test")
 for d in random.sample(dataset_dicts, 1):
     im = cv2.imread(d["file_name"])
+    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/GAPS384_train_0694_1_641.jpg")
     print(d["file_name"])
     print(im.shape)
     outputs = predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
@@ -125,11 +126,11 @@ for d in random.sample(dataset_dicts, 1):
     )
     out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('crack_output_test.jpg', out.get_image()[:, :, ::-1])
+    cv2.imwrite('{}/test_ex_0.7.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
 
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader
-evaluator = COCOEvaluator("crack_test", output_dir="./output_last_test")
+evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
 val_loader = build_detection_test_loader(cfg, "crack_test")
 print(inference_on_dataset(predictor.model, val_loader, evaluator))
 # another equivalent way to evaluate the model is to use `trainer.test`

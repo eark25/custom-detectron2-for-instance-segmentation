@@ -1,4 +1,10 @@
 # Some basic setup:
+import argparse
+import warnings
+from shapely.errors import ShapelyDeprecationWarning
+
+import wandb
+
 # Setup detectron2 logger
 import detectron2
 from detectron2.utils.logger import setup_logger
@@ -15,35 +21,6 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 from detectron2.engine import DefaultTrainer
-
-# im = cv2.imread("./input.jpg")
-
-# cfg = get_cfg()
-# # add project-specific config (e.g., TensorMask) here if you're not running a model in detectron2's core library
-# cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-# cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
-# # Find a model from detectron2's model zoo. You can use the https://dl.fbaipublicfiles... url as well
-# cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-# # print(cfg)
-# predictor = DefaultPredictor(cfg)
-# outputs = predictor(im)
-
-# # look at the outputs. See https://detectron2.readthedocs.io/tutorials/models.html#model-output-format for specification
-# # print(outputs["instances"].pred_classes)
-# # print(outputs["instances"].scores)
-# # print(outputs["instances"].pred_boxes)
-# # print(outputs["instances"].pred_masks.shape)
-# # print(outputs)
-
-# # We can use `Visualizer` to draw the predictions on the image.
-# v = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.0)
-# out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-# cv2.imwrite('output.jpg', out.get_image()[:, :, ::-1])
-
-# if your dataset is in COCO format, this cell can be replaced by the following three lines:
-# from detectron2.data.datasets import register_coco_instances
-# register_coco_instances("my_dataset_train", {}, "json_annotation_train.json", "path/to/image/dir")
-# register_coco_instances("my_dataset_val", {}, "json_annotation_val.json", "path/to/image/dir")
 from detectron2.evaluation import (
     CityscapesInstanceEvaluator,
     CityscapesSemSegEvaluator,
@@ -55,6 +32,7 @@ from detectron2.evaluation import (
     SemSegEvaluator,
     verify_results,
 )
+from detectron2.structures import BoxMode
 
 def build_evaluator(cfg, dataset_name, output_folder=None):
     """
@@ -108,65 +86,24 @@ class Trainer(DefaultTrainer):
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         return build_evaluator(cfg, dataset_name, output_folder)
 
-from detectron2.structures import BoxMode
-
-def get_balloon_dicts(img_dir):
-    json_file = os.path.join(img_dir, "via_region_data.json")
-    with open(json_file) as f:
-        imgs_anns = json.load(f)
-
-    dataset_dicts = []
-    for idx, v in enumerate(imgs_anns.values()):
-        record = {}
-        
-        filename = os.path.join(img_dir, v["filename"])
-        height, width = cv2.imread(filename).shape[:2]
-        
-        record["file_name"] = filename
-        record["image_id"] = idx
-        record["height"] = height
-        record["width"] = width
-      
-        annos = v["regions"]
-        objs = []
-        for _, anno in annos.items():
-            # print(anno)
-            assert not anno["region_attributes"]
-            anno = anno["shape_attributes"]
-            # print(anno)
-            px = anno["all_points_x"]
-            py = anno["all_points_y"]
-            # print(px)
-            # print(py)
-            poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
-            # print(poly)
-            poly = [p for x in poly for p in x]
-            # print(poly)
-            # import sys
-            # sys.exit(0)
-
-            obj = {
-                "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                "segmentation": [poly],
-                "category_id": 0,
-            }
-            objs.append(obj)
-        record["annotations"] = objs
-        dataset_dicts.append(record)
-    return dataset_dicts
-
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/crack_imgs/{}/{}_nobg.json'.format(img_dir, img_dir)
+    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
     dataset_dicts = []
     # loop through each image
+    # for idx, v in enumerate(imgs_anns["images"]):
+    #     print(idx, v)
+    # import sys
+    # sys.exit(0)
     for idx, v in enumerate(imgs_anns["images"]): # add [:1] for 1 image
         record = {}
         
-        filename = os.path.join('/root/detectron2/crack_imgs/train/images/', v['file_name'])
+        if 'noncrack' in v['file_name']:
+            filename = os.path.join('/root/detectron2/crack_imgs/{}/images/'.format(img_dir), v['file_name'] + '.jpg')
+        else:
+            filename = os.path.join('/root/detectron2/crack_imgs/{}/images/'.format(img_dir), v['file_name'])
         height, width = cv2.imread(filename).shape[:2]
         
         # common fields
@@ -195,218 +132,102 @@ def get_crack_dicts(img_dir):
         
         record["annotations"] = objs
         dataset_dicts.append(record)
-        # return list[dict]
-        return dataset_dicts
-
-for d in ["train", "val"]:
-    DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
-    MetadataCatalog.get("balloon_" + d).set(thing_classes=["balloon"], evaluator_type="coco")
-balloon_metadata = MetadataCatalog.get("balloon_train")
-balloon_train_dataset = len(DatasetCatalog.get("balloon_train"))
-# evaluator_type = MetadataCatalog.get("balloon_val").evaluator_type
-# print(balloon_metadata)
-# print(len(balloon_train_dataset))
-# import sys
-# sys.exit(0)
-
-# To verify the dataset is in correct format, let's visualize the annotations of randomly selected samples in the training set:
-dataset_dicts = get_balloon_dicts("balloon/train")
-for d in random.sample(dataset_dicts, 1):
-    # print(d["file_name"])
-    img = cv2.imread(d["file_name"])
-    visualizer = Visualizer(img[:, :, ::-1], metadata=balloon_metadata, scale=1.0)
-    out = visualizer.draw_dataset_dict(d)
-    # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
-
-# fine-tune a COCO-pretrained R50-FPN Mask R-CNN model on the balloon dataset. It takes ~2 minutes to train 300 iterations on a P100 GPU.
-epochs = 5
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.DATASETS.TRAIN = ("balloon_train",)
-cfg.DATASETS.TEST = ( "balloon_val",)
-cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
-cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
-one_epoch = int(balloon_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
-cfg.SOLVER.BASE_LR = 0.00025  # pick a good LR
-cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
-cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
-cfg.SOLVER.STEPS = []        # do not decay learning rate
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
-# NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
-cfg.TEST.EVAL_PERIOD = one_epoch
-cfg.MODEL.DEVICE = 'cuda:1'
-print(cfg)
-import sys
-sys.exit(0)
-
-import wandb
-wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-trainer = Trainer(cfg) 
-trainer.resume_or_load(resume=False)
-trainer.train()
-
-################################################################################################ train_args
-
-import argparse
-import warnings
-import mmcv
-from mmcv import Config
-
-from mmseg.datasets import build_dataset
-from mmseg.models import build_segmentor
-from mmseg.apis import train_segmentor
-
-import os.path as osp
-
-import copy
-
-import wandb
-
-'''
-learning rate - 1e-4 - 1 ?
-batch size - 4/8/16/32
-backbone - resnet 18/34/50/101
-ignore bg - True/False
-crop size - 256/512/1024
-keep_ratio resize - True/False
-lr_scheduler - poly/none
-momentum - 0-1
-weight_decay 1e-8/1e-4/1e-2
-'''
+    # return list[dict]
+    return dataset_dicts
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the model on images and target masks')
-    parser.add_argument('--learning_rate', '-lr', dest='learning_rate', metavar='LR', type=float, default=1e-1, help='Learning rate')
-    parser.add_argument('--batch_size', '-bs', dest='batch_size', metavar='BS', type=int, default=32, help='Batch size')
+    parser.add_argument('--learning_rate', '-lr', dest='learning_rate', metavar='LR', type=float, default=1e-3, help='Learning rate')
+    parser.add_argument('--batch_size', '-bs', dest='batch_size', metavar='BS', type=int, default=8, help='Batch size')
     parser.add_argument('--backbone', '-bb', dest='backbone', metavar='BB', type=str, default='r50', help='Backbone')
-    parser.add_argument('--ignore_bg', '-ib', dest='ignore_bg', metavar='IB', type=bool, default=False, help='Ignore background')
-    parser.add_argument('--crop_size', '-cs', dest='crop_size', metavar='CS', type=int, default=512, help='Crop size')
-    parser.add_argument('--keep_ratio', '-kr', dest='keep_ratio', metavar='KR', type=bool, default=False, help='Keep ratio')
-    parser.add_argument('--scheduler', '-sch', dest='lr_scheduler', metavar='SCH', type=str, default=None, help='Learning rate scheduler')
-    parser.add_argument('--momentum', '-mm', dest='momentum', metavar='MM', type=float, default=0.9, help='Momentum')
-    parser.add_argument('--weight_decay', '-wd', dest='weight_decay', metavar='WD', type=float, default=1e-8, help='Weight decay')
-    # what is nargs metavar action choices?
-    # nargs 
-    # - '+'/'*' multiple
-    # - '?' use default single
-    # metavar displayed name in -h
-    # action
+    parser.add_argument('--max_train_size', '-mts', dest='max_train_size', metavar='MTS', type=int, default=1024, help='Max train size')
+    parser.add_argument('--test_size', '-ts', dest='test_size', metavar='TS', type=int, default=512, help='Test size')
+    parser.add_argument('--weight_decay', '-wd', dest='weight_decay', metavar='WD', type=float, default=1e-4, help='Weight decay')
 
     return parser.parse_args()
 
 def main():
+    # register dataset
+    for d in ["train", "val"]:
+        DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts(d))
+        MetadataCatalog.get("crack_" + d).set(thing_classes=["crack"], evaluator_type="coco")
+    crack_train_dataset = len(DatasetCatalog.get("crack_train"))
+
     # get args here
     args = get_args()
 
     # get cfg here
     cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-
-    cfg = Config.fromfile('../configs/deeplabv3plus/mydeeplabv3plus.py')
 
     # apply argparsing to cfg here
-    if args.learning_rate:
-        cfg.optimizer.lr = args.learning_rate
-        cfg.lr_config.min_lr = args.learning_rate
+    # COCO Instance Segmentation Baselines with Mask R-CNN
+    if args.backbone == 'r50':
+        cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
+    elif args.backbone == 'r101':
+        cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")  # Let training initialize from model zoo
+    # New baselines using Large-Scale Jitter and Longer Training Schedule
+    # elif args.backbone == 'new_r50':
+    #     cfg.merge_from_file(model_zoo.get_config_file("new_baselines/mask_rcnn_R_50_FPN_400ep_LSJ.py"))
+    #     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("new_baselines/mask_rcnn_R_50_FPN_400ep_LSJ.py")  # Let training initialize from model zoo
+    # elif args.backbone == 'new_r101':
+    #     cfg.merge_from_file(model_zoo.get_config_file("new_baselines/mask_rcnn_R_101_FPN_400ep_LSJ.py"))
+    #     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("new_baselines/mask_rcnn_R_101_FPN_400ep_LSJ.py")  # Let training initialize from model zoo
+
+    # fine-tune a COCO-pretrained Rxxx-FPN Mask R-CNN model on the crack dataset.
+    epochs = 80
+    cfg.DATASETS.TRAIN = ("crack_train",)
+    cfg.DATASETS.TEST = ("crack_val",)
+    cfg.DATALOADER.NUM_WORKERS = 0
+
     if args.batch_size:
-        cfg.optimizer_config.cumulative_iters = int(args.batch_size / cfg.data.samples_per_gpu)
-    if args.backbone:
-        if args.backbone == 'r50':
-            cfg.model.pretrained = 'open-mmlab://resnet50_v1c'
-            cfg.model.backbone.depth = 50
-        if args.backbone == 'r101':
-            cfg.model.pretrained = 'open-mmlab://resnet101_v1c'
-            cfg.model.backbone.depth = 101
-    if args.ignore_bg:
-        cfg.model.decode_head.ignore_index = 0
-        cfg.model.decode_head.loss_decode[0].avg_non_ignore = True
-        cfg.model.decode_head.loss_decode[1].ignore_index = 0
-        cfg.model.auxiliary_head.ignore_index = 0
-        cfg.model.auxiliary_head.loss_decode[0].avg_non_ignore = True
-        cfg.model.auxiliary_head.loss_decode[1].ignore_index = 0
-        cfg.data.train.pipeline[3].ignore_index = 0
-        cfg.data.train.pipeline[5].seg_pad_val = 0
-        cfg.data.train.pipeline[8].seg_pad_val = 0
-        cfg.val_pipeline[3].ignore_index = 0
-        cfg.val_pipeline[6].seg_pad_val = 0
-        cfg.data.val.type='BuildingFacadeBGDataset'
-        cfg.data.val.pipeline[2].transforms[0].ignore_index = 0
-        cfg.data.val.pipeline[2].transforms[2].seg_pad_val = 0
-        cfg.data.test.type='BuildingFacadeBGDataset'
-        cfg.data.test.pipeline[2].transforms[0].ignore_index = 0
-        cfg.data.test.pipeline[2].transforms[2].seg_pad_val = 0
-    # if args.crop_size:
-    #     cfg.crop_size = (args.crop_size, args.crop_size)
-    if args.keep_ratio:
-        cfg.data.train.pipeline[2].keep_ratio = True
-        # cfg.val_pipeline[2].keep_ratio = True
-    # if args.lr_scheduler:
-    if args.momentum:
-        cfg.optimizer.momentum = args.momentum
+        cfg.SOLVER.IMS_PER_BATCH = args.batch_size  # This is the real "batch size" commonly known to deep learning people
+
+    one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
+
+    if args.learning_rate:
+        cfg.SOLVER.BASE_LR = args.learning_rate  # pick a good LR
+
+    cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
+    cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
+    cfg.SOLVER.STEPS = []        # do not decay learning rate
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
+    # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
+    cfg.TEST.EVAL_PERIOD = one_epoch
+    cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
+    cfg.MODEL.DEVICE = 'cuda:2'
+    cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
+    cfg.INPUT.CROP.ENABLED = True
+    cfg.INPUT.CROP.SIZE = [0.8, 0.8]
+    cfg.INPUT.CROP.TYPE = "relative_range"
+    # cfg.MODEL.PIXEL_{MEAN/STD}
+    # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
+    # cfg.MODEL.PIXEL_STD = [38.6440, 38.8538, 41.1382]
+    
+    if args.max_train_size:
+        cfg.INPUT.MIN_SIZE_TRAIN = (256, args.max_train_size)
+    # # Sample size of smallest side by choice or random selection from range give by
+    # # INPUT.MIN_SIZE_TRAIN
+    cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "range"
+
+    # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
+    if args.test_size:
+        cfg.INPUT.MIN_SIZE_TEST = args.test_size
+
     if args.weight_decay:
-        cfg.optimizer.weight_decay = args.weight_decay
+        cfg.SOLVER.WEIGHT_DECAY = args.weight_decay
 
-    ######################################################################
-    # wandb.init(project='DeepLabv3+', resume='allow', anonymous='must')
+    cfg.OUTPUT_DIR = 'output_sweep'
 
-    # print(cfg.pretty_text)
-    # import sys
-    # sys.exit(0)
+    warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
 
-    # Build the dataset
-    # assign dataset catalog
-    for d in ["train", "val"]:
-        DatasetCatalog.register("balloon_" + d, lambda d=d: get_balloon_dicts("balloon/" + d))
-        MetadataCatalog.get("balloon_" + d).set(thing_classes=["balloon"], evaluator_type="coco")
-    balloon_metadata = MetadataCatalog.get("balloon_train")
-    balloon_train_dataset = len(DatasetCatalog.get("balloon_train"))
-    # evaluator_type = MetadataCatalog.get("balloon_val").evaluator_type
-    # print(balloon_metadata)
-    # print(len(balloon_train_dataset))
-    # import sys
-    # sys.exit(0)
-
-    # To verify the dataset is in correct format, let's visualize the annotations of randomly selected samples in the training set:
-    dataset_dicts = get_balloon_dicts("balloon/train")
-    for d in random.sample(dataset_dicts, 1):
-        # print(d["file_name"])
-        img = cv2.imread(d["file_name"])
-        visualizer = Visualizer(img[:, :, ::-1], metadata=balloon_metadata, scale=1.0)
-        out = visualizer.draw_dataset_dict(d)
-        # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
-
-    datasets = [build_dataset(cfg.data.train)]
-
-    # for val loss
-    if len(cfg.workflow) == 2:
-        val_dataset = copy.deepcopy(cfg.data.val)
-        val_dataset.pipeline = cfg.val_pipeline
-        datasets.append(build_dataset(val_dataset))
-        # datasets.append(build_dataset(cfg.data.val))
-
-    # Build the detector
-    trainer = Trainer(cfg) 
-
-    model = build_segmentor(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
-
-    # Add an attribute for visualization convenience
-    model.CLASSES = datasets[0].CLASSES
-
-    # Create work_dir
-    import wandb
-    wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
+    wandb.init(project='mask_rcnn_sweep', resume='allow', anonymous='must', sync_tensorboard=True)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-
-    mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-
-    # Train
+    trainer = Trainer(cfg) 
     trainer.resume_or_load(resume=False)
     trainer.train()
-    
-    train_segmentor(model, datasets, cfg, distributed=False, validate=True, meta=dict())
 
 if __name__ == '__main__':
     main()

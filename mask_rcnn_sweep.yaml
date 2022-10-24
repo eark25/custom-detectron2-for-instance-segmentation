@@ -1,0 +1,20 @@
+entity: eark25
+project: mask_rcnn_sweep
+program: first_sweep.py
+method: random
+metric:
+  goal: maximize
+  name: segm/AP50
+parameters:
+  learning_rate:
+    values: [1e-3, 1e-4, 1e-5]
+  batch_size:
+    values: [2, 8]
+  backbone:
+    values: ['r50', 'r101']
+  max_train_size:
+    values: [512, 1024]
+  test_size:
+    values: [512, 1024]
+  weight_decay:
+    values: [1e-4, 1e-8]

@@ -227,7 +227,7 @@ crack_train_dataset = len(DatasetCatalog.get("crack_train"))
 #     # cv2.imwrite(d["file_name"].split('/')[2], out.get_image()[:, :, ::-1])
 
 # fine-tune a COCO-pretrained R50-FPN Mask R-CNN model on the balloon dataset. It takes ~2 minutes to train 300 iterations on a P100 GPU.
-epochs = 200
+epochs = 300
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.DATASETS.TRAIN = ("crack_train",)
@@ -236,7 +236,7 @@ cfg.DATALOADER.NUM_WORKERS = 0
 cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
-cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
+cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
 cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
 cfg.SOLVER.STEPS = []        # do not decay learning rate
@@ -248,7 +248,7 @@ cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
 cfg.MODEL.DEVICE = 'cuda:3'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 cfg.INPUT.CROP.ENABLED = True
-cfg.INPUT.CROP.SIZE = [0.5, 0.5]
+cfg.INPUT.CROP.SIZE = [0.8, 0.8]
 cfg.INPUT.CROP.TYPE = "relative_range"
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
