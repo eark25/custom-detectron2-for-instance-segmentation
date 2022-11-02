@@ -73,7 +73,7 @@ cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rc
 cfg.DATASETS.TRAIN = ("crack_train",)
 cfg.DATASETS.TEST = ("crack_test",)
 cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = os.path.join('output_2', "model_final.pth")  # path to the model we just trained
+cfg.MODEL.WEIGHTS = os.path.join('output_1', "model_best.pth")  # path to the model we just trained
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
@@ -85,7 +85,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:2'
+cfg.MODEL.DEVICE = 'cuda:0'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
@@ -97,10 +97,10 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 512
+cfg.INPUT.MIN_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_2'
+cfg.OUTPUT_DIR = 'output_1'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
@@ -114,8 +114,8 @@ predictor = DefaultPredictor(cfg)
 from detectron2.utils.visualizer import ColorMode, Visualizer
 dataset_dicts = get_crack_dicts("test")
 for d in random.sample(dataset_dicts, 1):
-    im = cv2.imread(d["file_name"])
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/GAPS384_train_0694_1_641.jpg")
+    # im = cv2.imread(d["file_name"])
+    im = cv2.imread("/root/detectron2/crack_imgs/test/images/Sylvie_Chambon_112.jpg")
     print(d["file_name"])
     print(im.shape)
     outputs = predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
@@ -126,7 +126,7 @@ for d in random.sample(dataset_dicts, 1):
     )
     out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_ex_0.7.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
+    cv2.imwrite('{}/test_ex_0.7_mt0.4.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
 
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader

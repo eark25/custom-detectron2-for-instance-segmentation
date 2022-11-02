@@ -236,7 +236,7 @@ cfg.DATALOADER.NUM_WORKERS = 0
 cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
-cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
+cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
 cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
 cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
 cfg.SOLVER.STEPS = []        # do not decay learning rate
@@ -245,7 +245,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:3'
+cfg.MODEL.DEVICE = 'cuda:1'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 cfg.INPUT.CROP.ENABLED = True
 cfg.INPUT.CROP.SIZE = [0.8, 0.8]
@@ -260,7 +260,8 @@ cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "range"
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 512
+cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
 cfg.OUTPUT_DIR = 'output_3'
