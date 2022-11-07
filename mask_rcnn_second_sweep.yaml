@@ -9,7 +9,7 @@ parameters:
   learning_rate:
     values: [1e-3]
   batch_size:
-    values: [2, 8]
+    values: [2, 4]
   backbone:
     values: ['r50', 'r101']
   max_train_size:

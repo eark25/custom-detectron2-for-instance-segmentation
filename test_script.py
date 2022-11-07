@@ -108,7 +108,7 @@ cfg.OUTPUT_DIR = 'output_1'
 # import sys
 # sys.exit(0)
 
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  # set a custom testing threshold
 predictor = DefaultPredictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
@@ -117,6 +117,7 @@ for d in random.sample(dataset_dicts, 1):
     # im = cv2.imread(d["file_name"])
     im = cv2.imread("/root/detectron2/crack_imgs/test/images/Sylvie_Chambon_112.jpg")
     print(d["file_name"])
+    print(im)
     print(im.shape)
     outputs = predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
     v = Visualizer(im[:, :, ::-1],
@@ -126,11 +127,11 @@ for d in random.sample(dataset_dicts, 1):
     )
     out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_ex_0.7_mt0.4.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
+    cv2.imwrite('{}/test_test.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
 
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-from detectron2.data import build_detection_test_loader
-evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
-val_loader = build_detection_test_loader(cfg, "crack_test")
-print(inference_on_dataset(predictor.model, val_loader, evaluator))
-# another equivalent way to evaluate the model is to use `trainer.test`
+# from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+# from detectron2.data import build_detection_test_loader
+# evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
+# val_loader = build_detection_test_loader(cfg, "crack_test")
+# print(inference_on_dataset(predictor.model, val_loader, evaluator))
+# # another equivalent way to evaluate the model is to use `trainer.test`
