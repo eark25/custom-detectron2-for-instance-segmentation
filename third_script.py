@@ -245,7 +245,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:1'
+cfg.MODEL.DEVICE = 'cuda:2'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 cfg.INPUT.CROP.ENABLED = True
 cfg.INPUT.CROP.SIZE = [0.8, 0.8]
@@ -253,17 +253,17 @@ cfg.INPUT.CROP.TYPE = "relative_range"
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
 # cfg.MODEL.PIXEL_STD = [38.6440, 38.8538, 41.1382]
-cfg.INPUT.MIN_SIZE_TRAIN = (256, 1024)
+cfg.INPUT.MIN_SIZE_TRAIN = (800,)
 # # Sample size of smallest side by choice or random selection from range give by
 # # INPUT.MIN_SIZE_TRAIN
-cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "range"
+cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "choice"
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.INPUT.MIN_SIZE_TEST = 800
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_4'
+cfg.OUTPUT_DIR = 'output_5'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
