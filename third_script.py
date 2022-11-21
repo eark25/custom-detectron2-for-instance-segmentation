@@ -157,7 +157,7 @@ def get_balloon_dicts(img_dir):
     return dataset_dicts
 
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16.json'.format(img_dir, img_dir)
+    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16_deduped.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
@@ -253,14 +253,14 @@ cfg.INPUT.CROP.TYPE = "relative_range"
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
 # cfg.MODEL.PIXEL_STD = [38.6440, 38.8538, 41.1382]
-cfg.INPUT.MIN_SIZE_TRAIN = (800,)
+cfg.INPUT.MIN_SIZE_TRAIN = (128, 1024)
 # # Sample size of smallest side by choice or random selection from range give by
 # # INPUT.MIN_SIZE_TRAIN
-cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "choice"
+cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = "range"
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 800
+cfg.INPUT.MIN_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
 cfg.OUTPUT_DIR = 'output_5'

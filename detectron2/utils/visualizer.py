@@ -97,21 +97,21 @@ class GenericMask:
 
     @property
     def mask(self):
-        print('yes mask')
+        # print('yes mask')
         if self._mask is None:
             self._mask = self.polygons_to_mask(self._polygons)
         return self._mask
 
     @property
     def polygons(self):
-        print('yes polygon')
+        # print('yes polygon')
         if self._polygons is None:
             self._polygons, self._has_holes = self.mask_to_polygons(self._mask)
         return self._polygons
 
     @property
     def has_holes(self):
-        print('yes has holes')
+        # print('yes has holes')
         if self._has_holes is None:
             if self._mask is not None:
                 self._polygons, self._has_holes = self.mask_to_polygons(self._mask)
@@ -120,7 +120,7 @@ class GenericMask:
         return self._has_holes
 
     def mask_to_polygons(self, mask):
-        print('use this')
+        # print('use this')
         # cv2.RETR_CCOMP flag retrieves all the contours and arranges them to a 2-level
         # hierarchy. External contours (boundary) of the object are placed in hierarchy-1.
         # Internal contours (holes) are placed in hierarchy-2.
@@ -404,8 +404,8 @@ class Visualizer:
 
         if predictions.has("pred_masks"):
             masks = np.asarray(predictions.pred_masks)
-            print(masks)
-            print(masks.shape)
+            # print(masks)
+            # print(masks.shape)
             masks = [GenericMask(x, self.output.height, self.output.width) for x in masks]
             # print(masks)
             # print(len(masks))
@@ -704,9 +704,9 @@ class Visualizer:
                 self.draw_box(boxes[i], edge_color=color)
 
             if masks is not None:
-                print('here')
+                # print('here')
                 for segment in masks[i].polygons:
-                    print('here 2')
+                    # print('here 2')
                     self.draw_polygon(segment.reshape(-1, 2), color, alpha=alpha)
 
             if labels is not None:

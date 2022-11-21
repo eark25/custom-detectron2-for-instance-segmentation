@@ -157,7 +157,7 @@ def get_balloon_dicts(img_dir):
     return dataset_dicts
 
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16.json'.format(img_dir, img_dir)
+    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16_deduped.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
@@ -245,7 +245,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:1'
+cfg.MODEL.DEVICE = 'cuda:0'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 cfg.INPUT.CROP.ENABLED = True
 cfg.INPUT.CROP.SIZE = [0.8, 0.8]
@@ -264,7 +264,7 @@ cfg.INPUT.MIN_SIZE_TEST = 1024
 # cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_2'
+cfg.OUTPUT_DIR = 'output_3'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
