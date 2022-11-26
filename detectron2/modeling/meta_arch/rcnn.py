@@ -245,8 +245,12 @@ class GeneralizedRCNN(nn.Module):
         ):
             height = input_per_image.get("height", image_size[0])
             width = input_per_image.get("width", image_size[1])
+            # Note: detector_postprocess modifies results
+            import copy
+            results_per_image_vis = copy.deepcopy(results_per_image)
             r = detector_postprocess(results_per_image, height, width)
-            processed_results.append({"instances": r})
+            r_vis = detector_postprocess(results_per_image_vis, height, width, 0.03)
+            processed_results.append({"instances": r, "instances_vis": r_vis})
         return processed_results
 
 

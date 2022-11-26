@@ -15,7 +15,7 @@ from detectron2.structures.boxes import BoxMode
 import pca_orientation as po
 
 def get_crack_dicts(img_dir):
-    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16.json'.format(img_dir, img_dir)
+    json_file = '/root/detectron2/crack_imgs/{}/{}_onlycrack_mt16_deduped.json'.format(img_dir, img_dir)
     with open(json_file) as f:
         imgs_anns = json.load(f)
 
@@ -75,7 +75,7 @@ cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rc
 cfg.DATASETS.TRAIN = ("crack_train",)
 cfg.DATASETS.TEST = ("crack_test",)
 cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = os.path.join('output_2', "model_best.pth")  # path to the model we just trained
+cfg.MODEL.WEIGHTS = os.path.join('output_3', "model_best.pth")  # path to the model we just trained
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
@@ -87,7 +87,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:1'
+cfg.MODEL.DEVICE = 'cuda:2'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
@@ -102,7 +102,7 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 cfg.INPUT.MIN_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_2'
+cfg.OUTPUT_DIR = 'output_3'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
@@ -118,6 +118,8 @@ from detectron2.utils.visualizer import ColorMode, Visualizer
 dataset_dicts = get_crack_dicts("test")
 for d in random.sample(dataset_dicts, 1):
     im = cv2.imread(d["file_name"])
+    # im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
+    # im = cv2.imread('/root/detectron2/crack_imgs/test/images/CRACK500_20160329_104201_1_721.jpg')
     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A3092_623_215_3689_2974.jpg")
     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2832_468_1720_2986_3861.jpg")
     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/cracktree200_6716.jpg")
@@ -126,18 +128,19 @@ for d in random.sample(dataset_dicts, 1):
     print(d["file_name"])
     # print(im)
     # print(im.shape)
-    outputs = predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-    # print(outputs)
-    # print(outputs["instances"])
+    outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
+    print(outputs)
+    # print(vis)
     # print(outputs["instances"].pred_masks)
-    # im = po.getOutputOrientation(outputs["instances"].pred_masks, im)
     # print(outputs["instances"].pred_masks.shape)
+    # im = po.getOutputOrientation(outputs["instances"].pred_masks, im)
     v = Visualizer(im[:, :, ::-1],
                    metadata=crack_metadata, 
                    scale=1, 
                    instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
     )
-    out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    # use more relaxed mask thresholding prediction for better visualization
+    out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
     # print(out.img)
     # print(out.img.shape)
     # cv2.imwrite('{}/test_out_img.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
@@ -147,7 +150,7 @@ for d in random.sample(dataset_dicts, 1):
     # print(out.get_image()[:, :, ::-1].shape)
     out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
     # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_rand_0.05_mt0.4.jpg'.format(cfg.OUTPUT_DIR), out)
+    cv2.imwrite('{}/test_1024_0.7_mt0.01_vis.jpg'.format(cfg.OUTPUT_DIR), out)
 
 # from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 # from detectron2.data import build_detection_test_loader
