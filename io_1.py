@@ -1,3 +1,65 @@
+# building element part
+from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
+from mmseg.core.evaluation import get_palette
+from mmseg.models import build_segmentor
+import mmcv
+from mmcv.runner import load_checkpoint
+
+config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_final_test.py'
+checkpoint_file = '/root/mmsegmentation/hrnet_final_run/best_mIoU_epoch_635.pth'
+classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
+palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
+device = 'cuda:0'
+
+img_norm_cfg = dict(
+    mean=[255*0.4780, 255*0.4511, 255*0.4137],
+    std=[255*0.2429, 255*0.2352, 255*0.2338],
+    to_rgb=True
+)
+
+crop_size = (512, 512)
+inference_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(
+        type='MultiScaleFlipAug',
+        img_scale=None,
+        img_ratios=[1.0],
+        flip=False,
+        transforms=[
+            dict(type='Resize', keep_ratio=True),
+            # dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
+            dict(type='RandomFlip', flip_ratio=0.0),
+            dict(type='Normalize', **img_norm_cfg),
+            # dict(type='Pad', size=crop_size, pad_val=0, seg_pad_val=255),
+            dict(type='ImageToTensor', keys=['img']),
+            dict(type='Collect', keys=['img'])
+        ])
+]
+
+# init segmentor
+config = mmcv.Config.fromfile(config_file)
+config.model.pretrained = None
+config.model.train_cfg = None
+config.data.test.pipeline = inference_pipeline
+# del config.data.test.pipeline[1]
+model = build_segmentor(config.model, test_cfg=config.get('test_cfg'))
+checkpoint = load_checkpoint(model, checkpoint_file, map_location='cpu')
+model.CLASSES = checkpoint['meta']['CLASSES']
+model.PALETTE = palette
+model.cfg = config  # save the config in the model for convenience
+model.to(device)
+model.eval()
+
+input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+result = inference_segmentor(model, input)
+
+output = show_result_pyplot(model, input, result, model.PALETTE)
+print(output)
+print(output.shape)
+import cv2
+cv2.imwrite('test_script_output.jpg', output)
+
+# crack detection part
 # Inference should use the config with parameters that are used in training
 # cfg now already contains everything we've set previously. We changed it a little bit for inference:
 import json
@@ -63,7 +125,7 @@ def get_crack_dicts(img_dir):
     # return list[dict]
     return dataset_dicts
 
-for d in ["train", "val", "test"]:
+for d in ["train"]:
     DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts(d))
     MetadataCatalog.get("crack_" + d).set(thing_classes=["crack"], evaluator_type="coco")
 crack_metadata = MetadataCatalog.get("crack_train")
@@ -103,58 +165,28 @@ cfg.INPUT.MIN_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
 cfg.OUTPUT_DIR = 'output_3'
-# print(cfg.INPUT.MIN_SIZE_TRAIN)
-# print(cfg.INPUT.MAX_SIZE_TRAIN)
-# print(cfg.INPUT.MIN_SIZE_TEST)
-# print(cfg.INPUT.MAX_SIZE_TEST)
-# import sys
-# sys.exit(0)
 
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 # cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  # if iou > nms_thresh then dont use that box
 predictor = DefaultPredictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
-dataset_dicts = get_crack_dicts("test")
-for d in random.sample(dataset_dicts, 1):
-    # im = cv2.imread(d["file_name"])
-    im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
-    # im = cv2.imread('/root/detectron2/crack_imgs/test/images/CRACK500_20160329_104201_1_721.jpg')
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A3092_623_215_3689_2974.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2832_468_1720_2986_3861.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/cracktree200_6716.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Sylvie_Chambon_112.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2854_630_863_3190_3161.jpg")
-    print(d["file_name"])
-    # print(im)
-    # print(im.shape)
-    outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-    print(outputs)
-    # print(vis)
-    # print(outputs["instances"].pred_masks)
-    # print(outputs["instances"].pred_masks.shape)
-    # im = po.getOutputOrientation(outputs["instances"].pred_masks, im)
-    v = Visualizer(im[:, :, ::-1],
-                   metadata=crack_metadata, 
-                   scale=1, 
-                   instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
-    )
-    # use more relaxed mask thresholding prediction for better visualization
-    out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
-    # print(out.img)
-    # print(out.img.shape)
-    # cv2.imwrite('{}/test_out_img.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
-    # print(out.get_image())
-    # print(out.get_image().shape)
-    # print(out.get_image()[:, :, ::-1])
-    # print(out.get_image()[:, :, ::-1].shape)
-    out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
-    # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_1024_0.7_mt0.01_vis.jpg'.format(cfg.OUTPUT_DIR), out)
 
-# from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-# from detectron2.data import build_detection_test_loader
-# evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
-# val_loader = build_detection_test_loader(cfg, "crack_test")
-# print(inference_on_dataset(predictor.model, val_loader, evaluator))
-# # another equivalent way to evaluate the model is to use `trainer.test`
+im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
+outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
+
+v = Visualizer(im[:, :, ::-1],
+                metadata=crack_metadata, 
+                scale=1, 
+                instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
+)
+# use more relaxed mask thresholding prediction for better visualization
+out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
+
+cv2.imwrite('{}/test_1024_0.7_mt0.01_vis.jpg'.format(cfg.OUTPUT_DIR), out)
+
+# combine part
+output_1 = output
+output_2 = out
+
