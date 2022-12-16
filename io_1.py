@@ -5,8 +5,8 @@ from mmseg.models import build_segmentor
 import mmcv
 from mmcv.runner import load_checkpoint
 
-config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_final_test.py'
-checkpoint_file = '/root/mmsegmentation/hrnet_final_run/best_mIoU_epoch_635.pth'
+config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_test.py'
+checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_run/best_mIoU_epoch_914.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
 device = 'cuda:0'
@@ -22,10 +22,11 @@ inference_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=None,
-        img_ratios=[1.0],
+        img_scale=(256,256),
+        img_ratios=[1.0,2.0],
         flip=False,
         transforms=[
+            # dict(type='CLAHE', clip_limit=3.0, tile_grid_size=(8, 8)),
             dict(type='Resize', keep_ratio=True),
             # dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
             dict(type='RandomFlip', flip_ratio=0.0),
@@ -50,14 +51,37 @@ model.cfg = config  # save the config in the model for convenience
 model.to(device)
 model.eval()
 
-input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+# from patchify import patchify
+# import cv2
+# full = cv2.imread('/root/detectron2/output_3/DJI_5.jpg')
+# patches = patchify(full, (1000, 1000, 3), step=1000)
+# print(patches.shape)
+
+# for i in range(patches.shape[0]):
+#     for j in range(patches.shape[1]):
+#         patch = patches[i, j, 0]
+#         num = i * patches.shape[1] + j
+#         cv2.imwrite('output_3/patch_{}.jpg'.format(num), patch)
+#         # patch.save(f"patch_{num}.jpg")
+# import sys
+# sys.exit(0)
+
+# input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+# input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
+# input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
+# input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
+input = '/root/detectron2/DJI_0269.JPG'
+# input = '/root/detectron2/output_3/patch_7.jpg'
 result = inference_segmentor(model, input)
 
 output = show_result_pyplot(model, input, result, model.PALETTE)
 print(output)
 print(output.shape)
 import cv2
-cv2.imwrite('test_script_output.jpg', output)
+cv2.imwrite('output_3/test_1024_0.7_mt0.01_vis_bc_0269_256ms_imgnet.jpg', output)
+
+import sys
+sys.exit(0)
 
 # crack detection part
 # Inference should use the config with parameters that are used in training
@@ -161,18 +185,19 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.INPUT.MIN_SIZE_TEST = 5000
+cfg.INPUT.MAX_SIZE_TEST = 5000
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
 cfg.OUTPUT_DIR = 'output_3'
 
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.01  # set a custom testing threshold
 # cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  # if iou > nms_thresh then dont use that box
 predictor = DefaultPredictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
 
-im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
+im = cv2.imread(input)
 outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
 
 v = Visualizer(im[:, :, ::-1],
@@ -184,9 +209,9 @@ v = Visualizer(im[:, :, ::-1],
 out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
 out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
-cv2.imwrite('{}/test_1024_0.7_mt0.01_vis.jpg'.format(cfg.OUTPUT_DIR), out)
+cv2.imwrite('{}/test_1024_0.7_mt0.01_vis_io_patch_5000_5000_CLAHE.jpg'.format(cfg.OUTPUT_DIR), out)
 
 # combine part
-output_1 = output
-output_2 = out
+# output_1 = output
+# output_2 = out
 

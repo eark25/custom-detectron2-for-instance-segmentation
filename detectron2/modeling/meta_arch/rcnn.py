@@ -249,7 +249,7 @@ class GeneralizedRCNN(nn.Module):
             import copy
             results_per_image_vis = copy.deepcopy(results_per_image)
             r = detector_postprocess(results_per_image, height, width)
-            r_vis = detector_postprocess(results_per_image_vis, height, width, 0.025)
+            r_vis = detector_postprocess(results_per_image_vis, height, width, 0.4)
             processed_results.append({"instances": r, "instances_vis": r_vis})
         return processed_results
 
