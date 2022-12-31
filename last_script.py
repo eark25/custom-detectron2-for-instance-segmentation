@@ -127,7 +127,7 @@ class ClaheTransform(T.Transform):
         return coords
 
     def apply_segmentation(self, segmentation):
-        segmentation = self.apply_image(segmentation)
+        # segmentation = self.apply_image(segmentation)
         return segmentation
 
     def inverse(self):
@@ -137,7 +137,7 @@ def build_custom_train_aug(cfg):
     min_size = cfg.INPUT.MIN_SIZE_TRAIN
     max_size = cfg.INPUT.MAX_SIZE_TRAIN
     sample_style = cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
-    augs = [ClaheTransform(clip_lim=3.0, win_size=8)]
+    augs = [Clahe(clip_lim=3.0, win_size=8)]
     if cfg.INPUT.CROP.ENABLED:
         augs.append(T.RandomCrop(cfg.INPUT.CROP.TYPE, cfg.INPUT.CROP.SIZE))
     augs.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
@@ -154,7 +154,7 @@ def build_custom_val_aug(cfg):
     min_size = cfg.INPUT.MIN_SIZE_TEST
     max_size = cfg.INPUT.MAX_SIZE_TEST
     sample_style = "choice"
-    augs = [ClaheTransform(clip_lim=3.0, win_size=8)]
+    augs = [Clahe(clip_lim=3.0, win_size=8)]
     augs.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
     return augs
 
@@ -349,6 +349,7 @@ cfg.OUTPUT_DIR = 'output_clahe_recheck'
 import warnings
 from shapely.errors import ShapelyDeprecationWarning
 warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 import wandb
 wandb.init(project='Mask-RCNN', resume='allow', anonymous='must', sync_tensorboard=True)
