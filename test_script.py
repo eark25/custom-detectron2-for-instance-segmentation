@@ -11,6 +11,7 @@ from detectron2.config.config import get_cfg
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
 from detectron2.structures.boxes import BoxMode
+import detectron2.data.transforms as T
 
 import pca_orientation as po
 
@@ -75,7 +76,7 @@ cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rc
 cfg.DATASETS.TRAIN = ("crack_train",)
 cfg.DATASETS.TEST = ("crack_test",)
 cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = os.path.join('output_3', "model_best.pth")  # path to the model we just trained
+cfg.MODEL.WEIGHTS = os.path.join('output_clahe', "model_best.pth")  # path to the model we just trained
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
 one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
@@ -102,7 +103,7 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 cfg.INPUT.MIN_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_3'
+cfg.OUTPUT_DIR = 'output_clahe'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
@@ -110,12 +111,86 @@ cfg.OUTPUT_DIR = 'output_3'
 # import sys
 # sys.exit(0)
 
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  # set a custom testing threshold
 # cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  # if iou > nms_thresh then dont use that box
-predictor = DefaultPredictor(cfg)
+
+class Clahe(T.Augmentation):
+
+    def __init__(self, clip_lim, win_size):
+        self.clip_lim = clip_lim
+        self.win_size = win_size
+        self._init(locals())
+
+    def get_transform(self, image):
+        return ClaheTransform(self.clip_lim, self.win_size)
+    
+class ClaheTransform(T.Transform):
+
+    def __init__(self, clip_lim, win_size):
+        super().__init__()
+        self.clip_limit = clip_lim
+        self.win_size = win_size
+        self._set_attributes(locals())
+
+    def apply_image(self, img):
+        clahe = cv2.createCLAHE(clipLimit=self.clip_limit, tileGridSize=(self.win_size, self.win_size))
+        for i in range(img.shape[2]):
+            img[:, :, i] = clahe.apply(np.array(img[:, :, i], dtype=np.uint8))
+        return img
+
+    def apply_coords(self, coords):
+        #coords[:, 0] = coords[:, 0] * (self.new_w * 1.0 / self.w)
+        #coords[:, 1] = coords[:, 1] * (self.new_h * 1.0 / self.h)
+        return coords
+
+    def apply_segmentation(self, segmentation):
+        segmentation = self.apply_image(segmentation)
+        return segmentation
+
+    def inverse(self):
+        return ClaheTransform(self.clip_lim, self.win_size)
+
+class Predictor(DefaultPredictor):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+        self.aug = T.AugmentationList([
+            ClaheTransform(clip_lim=3.0, win_size=8),
+            T.ResizeShortestEdge(
+            [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
+            )
+        ])
+
+    def __call__(self, original_image):
+        """
+        Args:
+            original_image (np.ndarray): an image of shape (H, W, C) (in BGR order).
+
+        Returns:
+            predictions (dict):
+                the output of the model for one image only.
+                See :doc:`/tutorials/models` for details about the format.
+        """
+        import torch
+        with torch.no_grad():  # https://github.com/sphinx-doc/sphinx/issues/4258
+            # Apply pre-processing to image.
+            if self.input_format == "RGB":
+                # whether the model expects BGR inputs or RGB
+                original_image = original_image[:, :, ::-1]
+            height, width = original_image.shape[:2]
+            raw_inputs = T.AugInput(original_image)
+            transforms = self.aug(raw_inputs)
+            image = raw_inputs.image
+            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+
+            inputs = {"image": image, "height": height, "width": width}
+            predictions = self.model([inputs])[0]
+            return predictions
+
+predictor = Predictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
-dataset_dicts = get_crack_dicts("test")
+dataset_dicts = get_crack_dicts("val")
 for d in random.sample(dataset_dicts, 1):
     # im = cv2.imread(d["file_name"])
     im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
@@ -150,11 +225,11 @@ for d in random.sample(dataset_dicts, 1):
     # print(out.get_image()[:, :, ::-1].shape)
     out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
     # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_1024_0.7_mt0.01_vis.jpg'.format(cfg.OUTPUT_DIR), out)
+    cv2.imwrite('{}/test_clahe_0.05_1024.jpg'.format(cfg.OUTPUT_DIR), out)
 
-# from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-# from detectron2.data import build_detection_test_loader
-# evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
-# val_loader = build_detection_test_loader(cfg, "crack_test")
-# print(inference_on_dataset(predictor.model, val_loader, evaluator))
-# # another equivalent way to evaluate the model is to use `trainer.test`
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+from detectron2.data import build_detection_test_loader
+evaluator = COCOEvaluator("crack_val", output_dir="./{}".format(cfg.OUTPUT_DIR))
+val_loader = build_detection_test_loader(cfg, "crack_val")
+print(inference_on_dataset(predictor.model, val_loader, evaluator))
+# another equivalent way to evaluate the model is to use `trainer.test`

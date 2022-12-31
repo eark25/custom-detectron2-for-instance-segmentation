@@ -138,6 +138,8 @@ def build_custom_train_aug(cfg):
     max_size = cfg.INPUT.MAX_SIZE_TRAIN
     sample_style = cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
     augs = [ClaheTransform(clip_lim=3.0, win_size=8)]
+    if cfg.INPUT.CROP.ENABLED:
+        augs.append(T.RandomCrop(cfg.INPUT.CROP.TYPE, cfg.INPUT.CROP.SIZE))
     augs.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
     if cfg.INPUT.RANDOM_FLIP != "none":
         augs.append(
@@ -175,7 +177,7 @@ class Trainer(DefaultTrainer):
     
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
-        mapper = DatasetMapper(cfg, is_train=True, augmentations=build_custom_val_aug(cfg))
+        mapper = DatasetMapper(cfg, is_train=False, augmentations=build_custom_val_aug(cfg))
         return build_detection_test_loader(cfg, dataset_name, mapper=mapper)
 
     
@@ -336,7 +338,7 @@ cfg.INPUT.MIN_SIZE_TEST = 1024
 # cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_clahe'
+cfg.OUTPUT_DIR = 'output_clahe_recheck'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)
