@@ -69,6 +69,7 @@ for d in ["train", "val", "test"]:
     MetadataCatalog.get("crack_" + d).set(thing_classes=["crack"], evaluator_type="coco")
 crack_metadata = MetadataCatalog.get("crack_train")
 crack_train_dataset = len(DatasetCatalog.get("crack_train"))
+print('Done registering datasets')
 
 epochs = 100
 cfg = get_cfg()
@@ -88,7 +89,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:2'
+cfg.MODEL.DEVICE = 'cuda:0'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
@@ -189,47 +190,58 @@ class Predictor(DefaultPredictor):
 
 predictor = Predictor(cfg)
 
-from detectron2.utils.visualizer import ColorMode, Visualizer
-dataset_dicts = get_crack_dicts("val")
-for d in random.sample(dataset_dicts, 1):
-    # im = cv2.imread(d["file_name"])
-    im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
-    # im = cv2.imread('/root/detectron2/crack_imgs/test/images/CRACK500_20160329_104201_1_721.jpg')
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A3092_623_215_3689_2974.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2832_468_1720_2986_3861.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/cracktree200_6716.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Sylvie_Chambon_112.jpg")
-    # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2854_630_863_3190_3161.jpg")
-    print(d["file_name"])
-    # print(im)
-    # print(im.shape)
-    outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-    print(outputs)
-    # print(vis)
-    # print(outputs["instances"].pred_masks)
-    # print(outputs["instances"].pred_masks.shape)
-    # im = po.getOutputOrientation(outputs["instances"].pred_masks, im)
-    v = Visualizer(im[:, :, ::-1],
-                   metadata=crack_metadata, 
-                   scale=1, 
-                   instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
-    )
-    # use more relaxed mask thresholding prediction for better visualization
-    out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
-    # print(out.img)
-    # print(out.img.shape)
-    # cv2.imwrite('{}/test_out_img.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
-    # print(out.get_image())
-    # print(out.get_image().shape)
-    # print(out.get_image()[:, :, ::-1])
-    # print(out.get_image()[:, :, ::-1].shape)
-    out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
-    # cv2.imshow('', out.get_image()[:, :, ::-1])
-    cv2.imwrite('{}/test_clahe_0.05_1024.jpg'.format(cfg.OUTPUT_DIR), out)
+# from detectron2.utils.visualizer import ColorMode, Visualizer
+# dataset_dicts = get_crack_dicts("val")
+# for d in random.sample(dataset_dicts, 1):
+#     # im = cv2.imread(d["file_name"])
+#     im = cv2.imread('/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2841_533_2701_2861_2855.jpg')
+#     # im = cv2.imread('/root/detectron2/crack_imgs/test/images/CRACK500_20160329_104201_1_721.jpg')
+#     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A3092_623_215_3689_2974.jpg")
+#     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2832_468_1720_2986_3861.jpg")
+#     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/cracktree200_6716.jpg")
+#     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Sylvie_Chambon_112.jpg")
+#     # im = cv2.imread("/root/detectron2/crack_imgs/test/images/Rissbilder_for_Florian_9S6A2854_630_863_3190_3161.jpg")
+#     print(d["file_name"])
+#     # print(im)
+#     # print(im.shape)
+#     outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
+#     print(outputs)
+#     # print(vis)
+#     # print(outputs["instances"].pred_masks)
+#     # print(outputs["instances"].pred_masks.shape)
+#     # im = po.getOutputOrientation(outputs["instances"].pred_masks, im)
+#     v = Visualizer(im[:, :, ::-1],
+#                    metadata=crack_metadata, 
+#                    scale=1, 
+#                    instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
+#     )
+#     # use more relaxed mask thresholding prediction for better visualization
+#     out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+#     # print(out.img)
+#     # print(out.img.shape)
+#     # cv2.imwrite('{}/test_out_img.jpg'.format(cfg.OUTPUT_DIR), out.get_image()[:, :, ::-1])
+#     # print(out.get_image())
+#     # print(out.get_image().shape)
+#     # print(out.get_image()[:, :, ::-1])
+#     # print(out.get_image()[:, :, ::-1].shape)
+#     out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
+#     # cv2.imshow('', out.get_image()[:, :, ::-1])
+#     cv2.imwrite('{}/test_clahe_0.05_1024.jpg'.format(cfg.OUTPUT_DIR), out)
 
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader
-evaluator = COCOEvaluator("crack_val", output_dir="./{}".format(cfg.OUTPUT_DIR))
-val_loader = build_detection_test_loader(cfg, "crack_val")
+from detectron2.data.dataset_mapper import DatasetMapper
+
+def build_custom_val_aug(cfg):
+    min_size = cfg.INPUT.MIN_SIZE_TEST
+    max_size = cfg.INPUT.MAX_SIZE_TEST
+    sample_style = "choice"
+    augs = [Clahe(clip_lim=3.0, win_size=8)]
+    augs.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
+    return augs
+
+evaluator = COCOEvaluator("crack_test", output_dir="./{}".format(cfg.OUTPUT_DIR))
+mapper = DatasetMapper(cfg, is_train=False, augmentations=build_custom_val_aug(cfg))
+val_loader = build_detection_test_loader(cfg, "crack_test", mapper=mapper)
 print(inference_on_dataset(predictor.model, val_loader, evaluator))
 # another equivalent way to evaluate the model is to use `trainer.test`
