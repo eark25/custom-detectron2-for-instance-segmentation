@@ -5,15 +5,18 @@ from mmseg.models import build_segmentor
 import mmcv
 from mmcv.runner import load_checkpoint
 
-config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_test.py'
-checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_run/best_mIoU_epoch_914.pth'
+config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
+checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
 device = 'cuda:0'
+djis = ['0269', '0326']
+test_scale = 128
+ratios = [1.0, 2.0, 4.0, 8.0, 16.0]
 
 img_norm_cfg = dict(
-    mean=[255*0.4780, 255*0.4511, 255*0.4137],
-    std=[255*0.2429, 255*0.2352, 255*0.2338],
+    mean=[255*0.485, 255*0.456, 255*0.406],
+    std=[255*0.229, 255*0.224, 255*0.225],
     to_rgb=True
 )
 
@@ -22,11 +25,11 @@ inference_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(256,256),
-        img_ratios=[1.0,2.0],
+        img_scale=(test_scale, test_scale),
+        img_ratios=ratios,
         flip=False,
         transforms=[
-            # dict(type='CLAHE', clip_limit=3.0, tile_grid_size=(8, 8)),
+            dict(type='CLAHE', clip_limit=3.0, tile_grid_size=(8, 8)),
             dict(type='Resize', keep_ratio=True),
             # dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
             dict(type='RandomFlip', flip_ratio=0.0),
@@ -66,19 +69,20 @@ model.eval()
 # import sys
 # sys.exit(0)
 
-# input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
-# input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
-# input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
-# input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
-input = '/root/detectron2/DJI_0269.JPG'
-# input = '/root/detectron2/output_3/patch_7.jpg'
-result = inference_segmentor(model, input)
+for dji in djis:
+    # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+    # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
+    # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
+    # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
+    input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+    # input = '/root/detectron2/output_3/patch_7.jpg'
+    result = inference_segmentor(model, input)
 
-output = show_result_pyplot(model, input, result, model.PALETTE)
-print(output)
-print(output.shape)
-import cv2
-cv2.imwrite('output_3/test_1024_0.7_mt0.01_vis_bc_0269_256ms_imgnet.jpg', output)
+    output = show_result_pyplot(model, input, result, model.PALETTE)
+    # print(output)
+    # print(output.shape)
+    import cv2
+    cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
 
 import sys
 sys.exit(0)
