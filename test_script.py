@@ -64,30 +64,30 @@ def get_crack_dicts(img_dir):
     # return list[dict]
     return dataset_dicts
 
-for d in ["train", "val", "test"]:
+for d in ["test"]:
     DatasetCatalog.register("crack_" + d, lambda d=d: get_crack_dicts(d))
     MetadataCatalog.get("crack_" + d).set(thing_classes=["crack"], evaluator_type="coco")
-crack_metadata = MetadataCatalog.get("crack_train")
-crack_train_dataset = len(DatasetCatalog.get("crack_train"))
+# crack_metadata = MetadataCatalog.get("crack_train")
+# crack_train_dataset = len(DatasetCatalog.get("crack_train"))
 print('Done registering datasets')
 
 epochs = 100
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
-cfg.DATASETS.TRAIN = ("crack_train",)
+# cfg.DATASETS.TRAIN = ("crack_train",)
 cfg.DATASETS.TEST = ("crack_test",)
 cfg.DATALOADER.NUM_WORKERS = 0
-cfg.MODEL.WEIGHTS = os.path.join('output_clahe', "model_best.pth")  # path to the model we just trained
+cfg.MODEL.WEIGHTS = os.path.join('output_clahe_recheck', "model_best.pth")  # path to the model we just trained
 cfg.SOLVER.IMS_PER_BATCH = 2  # This is the real "batch size" commonly known to deep learning people
-one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
+# one_epoch = int(crack_train_dataset / cfg.SOLVER.IMS_PER_BATCH)
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
-cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
-cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
+# cfg.SOLVER.MAX_ITER = int(one_epoch * epochs)   # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
+# cfg.SOLVER.WARMUP_ITERS = int(one_epoch)    # warm up iterations before reaching the base learning rate
 cfg.SOLVER.STEPS = []        # do not decay learning rate
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # The "RoIHead batch size". 128 is faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
-cfg.TEST.EVAL_PERIOD = one_epoch
+# cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
 cfg.MODEL.DEVICE = 'cuda:0'
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
@@ -101,10 +101,10 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 1024
+cfg.INPUT.MIN_SIZE_TEST = 448
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
-cfg.OUTPUT_DIR = 'output_clahe'
+cfg.OUTPUT_DIR = 'output_clahe_recheck'
 # print(cfg.INPUT.MIN_SIZE_TRAIN)
 # print(cfg.INPUT.MAX_SIZE_TRAIN)
 # print(cfg.INPUT.MIN_SIZE_TEST)

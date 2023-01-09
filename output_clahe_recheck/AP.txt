@@ -1,0 +1,74 @@
+Loading and preparing results...
+DONE (t=0.01s)
+creating index...
+index created!
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.473
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.636
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.520
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.331
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.655
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.518
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.280
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.525
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.533
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.363
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.706
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.737
+ Average Precision  (AP) @[ IoU=0.50      | area= small | maxDets=100 ] = 0.472
+ Average Precision  (AP) @[ IoU=0.50      | area=medium | maxDets=100 ] = 0.824
+ Average Precision  (AP) @[ IoU=0.50      | area= large | maxDets=100 ] = 0.768
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets=  1 ] = 0.341
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets= 10 ] = 0.671
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.687
+ Average Recall     (AR) @[ IoU=0.50      | area= small | maxDets=100 ] = 0.507
+ Average Recall     (AR) @[ IoU=0.50      | area=medium | maxDets=100 ] = 0.863
+ Average Recall     (AR) @[ IoU=0.50      | area= large | maxDets=100 ] = 0.937
+Loading and preparing results...
+DONE (t=0.07s)
+creating index...
+index created!
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.163
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.449
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.070
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.199
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.121
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.247
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.117
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.240
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.245
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.236
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.233
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.340
+ Average Precision  (AP) @[ IoU=0.50      | area= small | maxDets=100 ] = 0.436
+ Average Precision  (AP) @[ IoU=0.50      | area=medium | maxDets=100 ] = 0.433
+ Average Precision  (AP) @[ IoU=0.50      | area= large | maxDets=100 ] = 0.673
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets=  1 ] = 0.274
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets= 10 ] = 0.557
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.571
+ Average Recall     (AR) @[ IoU=0.50      | area= small | maxDets=100 ] = 0.491
+ Average Recall     (AR) @[ IoU=0.50      | area=medium | maxDets=100 ] = 0.622
+ Average Recall     (AR) @[ IoU=0.50      | area= large | maxDets=100 ] = 0.794
+OrderedDict([
+('bbox', {'AP': 47.26462364286708, 'AP50': 63.569412317272, 'AP75': 52.0469953428268, 'APs': 33.148862872232286, 'APm': 65.49355762406141, 'APl': 51.79527488721003}),
+('segm', {'AP': 16.2990532137102, 'AP50': 44.871497013859866, 'AP75': 7.00715562076011, 'APs': 19.8984224218873, 'APm': 12.136830789964266, 'APl': 24.72525901333151})
+])
+
+1024 score 0.5
+OrderedDict([('bbox', {'AP': 46.02846763244745, 'AP50': 60.50343538823599, 'AP75': 51.175160219546115, 'APs': 31.826889453844775, 'APm': 64.25873894037035, 'APl': 51.097043112592885}),
+('segm', {'AP': 15.856540214065276, 'AP50': 43.02588182893408, 'AP75': 7.00715562076011, 'APs': 19.25699200864056, 'APm': 11.807782484241569, 'APl': 24.270848802842334})])
+
+1024 score 0.7
+OrderedDict([('bbox', {'AP': 45.525184818537596, 'AP50': 59.714559736262295, 'AP75': 50.511069420222285, 'APs': 31.20745219176878, 'APm': 63.37827781064238, 'APl': 50.659702733895884}),
+('segm', {'AP': 15.503540517630485, 'AP50': 41.74440178492908, 'AP75': 6.819991346676746, 'APs': 18.987573890450943, 'APm': 11.498152621157793, 'APl': 24.009618732833147})])
+
+512 score 0.05
+OrderedDict([('bbox', {'AP': 46.183560591003136, 'AP50': 63.75409475604885, 'AP75': 50.648386988271156, 'APs': 31.411511479723252, 'APm': 65.34374284347487, 'APl': 55.50632767942163}),
+('segm', {'AP': 14.275892385252376, 'AP50': 42.4490634847232, 'AP75': 4.646112380603733, 'APs': 16.387346954489125, 'APm': 12.445295074564362, 'APl': 23.779213569542826})])
+
+256 score 0.05
+OrderedDict([('bbox', {'AP': 33.86146090280819, 'AP50': 52.95166670451815, 'AP75': 35.78586748834441, 'APs': 16.105544221879267, 'APm': 58.18786976331499, 'APl': 48.78953607189377}),
+('segm', {'AP': 6.808643826462936, 'AP50': 27.238713338830166, 'AP75': 0.5294395003423208, 'APs': 4.070085088755776, 'APm': 8.434856252179971, 'APl': 19.679003831285993})])
+
+448 score 0.05
+OrderedDict([('bbox', {'AP': 43.508488403124886, 'AP50': 62.26873746421268, 'AP75': 46.79808819882689, 'APs': 28.163269373663514, 'APm': 63.66816518358442, 'APl': 54.92229298562494}),
+('segm', {'AP': 10.266550681949663, 'AP50': 34.29948817630569, 'AP75': 1.966957874078095, 'APs': 11.482283275000913, 'APm': 8.479999324265144, 'APl': 23.631058613011053})])
