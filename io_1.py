@@ -9,9 +9,10 @@ config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
 checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
-device = 'cuda:0'
+device = 'cuda:3'
 djis = ['0269', '0326']
-test_scale = 128
+test_scale = 1024
+thresh = 0.001
 ratios = [1.0, 2.0, 4.0, 8.0, 16.0]
 
 # img_norm_cfg = dict(
@@ -56,15 +57,15 @@ ratios = [1.0, 2.0, 4.0, 8.0, 16.0]
 
 # # from patchify import patchify
 # # import cv2
-# # full = cv2.imread('/root/detectron2/output_3/DJI_5.jpg')
-# # patches = patchify(full, (1000, 1000, 3), step=1000)
+# # full = cv2.imread('/root/detectron2/DJI_0269.JPG')
+# # patches = patchify(full, (500, 500, 3), step=500)
 # # print(patches.shape)
 
 # # for i in range(patches.shape[0]):
 # #     for j in range(patches.shape[1]):
 # #         patch = patches[i, j, 0]
 # #         num = i * patches.shape[1] + j
-# #         cv2.imwrite('output_3/patch_{}.jpg'.format(num), patch)
+# #         cv2.imwrite('input_patches/0269_patch_{}.jpg'.format(num), patch)
 # #         # patch.save(f"patch_{num}.jpg")
 # # import sys
 # # sys.exit(0)
@@ -190,14 +191,14 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = 512
-cfg.INPUT.MAX_SIZE_TEST = 2048
+cfg.INPUT.MIN_SIZE_TEST = test_scale
+cfg.INPUT.MAX_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
 cfg.OUTPUT_DIR = 'output_clahe_recheck'
 
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.0001  # set a custom testing threshold
-# cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  # if iou > nms_thresh then dont use that box
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = thresh  # set a custom testing threshold
+cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.3  # if iou > nms_thresh then dont use that box
 
 class Clahe(T.Augmentation):
 
@@ -277,11 +278,14 @@ predictor = Predictor(cfg)
 from detectron2.utils.visualizer import ColorMode, Visualizer
 
 for dji in djis:
+# for i in range(48):
     # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
     # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
     # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
     input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+    # input = '/root/detectron2/input_patches/0269_patch_{}.jpg'.format(i)
+    print(input)
     im = cv2.imread(input)
     
 
@@ -292,12 +296,16 @@ for dji in djis:
     )
 
     outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-    print(outputs)
+    # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
-    out = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+    out, polygons = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+    print(polygons) # use these polygons to find skeletons
     out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
-    cv2.imwrite('{}/{}_{}_{}_mt0.4.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
+    # apply rules here
+
+    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
+    # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
 # combine part
 # output_1 = output

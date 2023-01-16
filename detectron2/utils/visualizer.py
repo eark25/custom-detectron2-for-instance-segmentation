@@ -436,7 +436,7 @@ class Visualizer:
             )
             alpha = 0.3
 
-        self.overlay_instances(
+        self.output, segments = self.overlay_instances( # <<<<<<<<<<
             masks=masks,
             boxes=boxes,
             labels=labels,
@@ -444,7 +444,7 @@ class Visualizer:
             assigned_colors=colors,
             alpha=alpha,
         )
-        return self.output
+        return self.output, segments # <<<<<<<<<<<<<
 
     def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8):
         """
@@ -698,6 +698,7 @@ class Visualizer:
             assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
             keypoints = keypoints[sorted_idxs] if keypoints is not None else None
 
+        segments = [] # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         for i in range(num_instances):
             color = assigned_colors[i]
             if boxes is not None:
@@ -707,6 +708,7 @@ class Visualizer:
                 # print('here')
                 for segment in masks[i].polygons:
                     # print('here 2')
+                    segments.append(segment)
                     self.draw_polygon(segment.reshape(-1, 2), color, alpha=alpha)
 
             if labels is not None:
@@ -759,7 +761,7 @@ class Visualizer:
             for keypoints_per_instance in keypoints:
                 self.draw_and_connect_keypoints(keypoints_per_instance)
 
-        return self.output
+        return self.output, segments # <<<<<<<<<<<<<<<<<<<<<<
 
     def overlay_rotated_instances(self, boxes=None, labels=None, assigned_colors=None):
         """

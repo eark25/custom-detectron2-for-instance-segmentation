@@ -82,7 +82,7 @@ def getOutputOrientation(masks, img):
 
     for i in range(masks.shape[0]):
         mask = masks[i].to("cpu").long()
-        # print(mask)
+        # print('mask: ', mask)
         # print(np.unique(mask))
         # print(mask.shape)
         # exit(0)
@@ -91,10 +91,17 @@ def getOutputOrientation(masks, img):
         # Convert image to binary
         # _, bw = cv.threshold(gray, 50, 255, cv.THRESH_BINARY | cv.THRESH_OTSU)
         obj = np.expand_dims(np.nonzero(mask), axis=1) # not using np.transpose because we are not using cv.imread()
-        assert len(obj) != 0, 'no crack detected'
+        # print('obj: ', obj)
+        # print(obj.shape)
+        try:
+            assert len(obj) != 0, 'no crack detected'
+        except AssertionError as e:
+            # import sys
+            # sys.exit(0)
+            continue
         # print(obj) # swap this
         # print(obj.shape)
-        print('angle of mask {}:'.format(i), -(getOrientation(i, obj, img) * 180 / pi), 'degree')
+        print('angle of mask {}:'.format(i+1), -(getOrientation(i+1, obj, img) * 180 / pi), 'degree')
         # maybe use contour from prediction
         # contours, _ = cv.findContours(bw, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
         # print(contours)
