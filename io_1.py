@@ -4,6 +4,7 @@ from mmseg.core.evaluation import get_palette
 from mmseg.models import build_segmentor
 import mmcv
 from mmcv.runner import load_checkpoint
+import numpy as np
 
 config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
 checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
@@ -11,79 +12,89 @@ classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
 device = 'cuda:3'
 djis = ['0269', '0326']
-test_scale = 1024
+test_scale = 256
 thresh = 0.001
-ratios = [1.0, 2.0, 4.0, 8.0, 16.0]
+ratios = [1.0, 2.0]
 
-# img_norm_cfg = dict(
-#     mean=[255*0.485, 255*0.456, 255*0.406],
-#     std=[255*0.229, 255*0.224, 255*0.225],
-#     to_rgb=True
-# )
+img_norm_cfg = dict(
+    mean=[255*0.485, 255*0.456, 255*0.406],
+    std=[255*0.229, 255*0.224, 255*0.225],
+    to_rgb=True
+)
 
-# crop_size = (512, 512)
-# inference_pipeline = [
-#     dict(type='LoadImageFromFile'),
-#     dict(
-#         type='MultiScaleFlipAug',
-#         img_scale=(test_scale, test_scale),
-#         img_ratios=ratios,
-#         flip=False,
-#         transforms=[
-#             dict(type='CLAHE', clip_limit=3.0, tile_grid_size=(8, 8)),
-#             dict(type='Resize', keep_ratio=True),
-#             # dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
-#             dict(type='RandomFlip', flip_ratio=0.0),
-#             dict(type='Normalize', **img_norm_cfg),
-#             # dict(type='Pad', size=crop_size, pad_val=0, seg_pad_val=255),
-#             dict(type='ImageToTensor', keys=['img']),
-#             dict(type='Collect', keys=['img'])
-#         ])
-# ]
+crop_size = (512, 512)
+inference_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(
+        type='MultiScaleFlipAug',
+        img_scale=(test_scale, test_scale),
+        img_ratios=ratios,
+        flip=False,
+        transforms=[
+            dict(type='CLAHE', clip_limit=3.0, tile_grid_size=(8, 8)),
+            dict(type='Resize', keep_ratio=True),
+            # dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
+            dict(type='RandomFlip', flip_ratio=0.0),
+            dict(type='Normalize', **img_norm_cfg),
+            # dict(type='Pad', size=crop_size, pad_val=0, seg_pad_val=255),
+            dict(type='ImageToTensor', keys=['img']),
+            dict(type='Collect', keys=['img'])
+        ])
+]
 
-# # init segmentor
-# config = mmcv.Config.fromfile(config_file)
-# config.model.pretrained = None
-# config.model.train_cfg = None
-# config.data.test.pipeline = inference_pipeline
-# # del config.data.test.pipeline[1]
-# model = build_segmentor(config.model, test_cfg=config.get('test_cfg'))
-# checkpoint = load_checkpoint(model, checkpoint_file, map_location='cpu')
-# model.CLASSES = checkpoint['meta']['CLASSES']
-# model.PALETTE = palette
-# model.cfg = config  # save the config in the model for convenience
-# model.to(device)
-# model.eval()
+# init segmentor
+config = mmcv.Config.fromfile(config_file)
+config.model.pretrained = None
+config.model.train_cfg = None
+config.data.test.pipeline = inference_pipeline
+# del config.data.test.pipeline[1]
+model = build_segmentor(config.model, test_cfg=config.get('test_cfg'))
+checkpoint = load_checkpoint(model, checkpoint_file, map_location='cpu')
+model.CLASSES = checkpoint['meta']['CLASSES']
+model.PALETTE = palette
+model.cfg = config  # save the config in the model for convenience
+model.to(device)
+model.eval()
 
-# # from patchify import patchify
-# # import cv2
-# # full = cv2.imread('/root/detectron2/DJI_0269.JPG')
-# # patches = patchify(full, (500, 500, 3), step=500)
-# # print(patches.shape)
+# from patchify import patchify
+# import cv2
+# full = cv2.imread('/root/detectron2/DJI_0269.JPG')
+# patches = patchify(full, (500, 500, 3), step=500)
+# print(patches.shape)
 
-# # for i in range(patches.shape[0]):
-# #     for j in range(patches.shape[1]):
-# #         patch = patches[i, j, 0]
-# #         num = i * patches.shape[1] + j
-# #         cv2.imwrite('input_patches/0269_patch_{}.jpg'.format(num), patch)
-# #         # patch.save(f"patch_{num}.jpg")
-# # import sys
-# # sys.exit(0)
+# for i in range(patches.shape[0]):
+#     for j in range(patches.shape[1]):
+#         patch = patches[i, j, 0]
+#         num = i * patches.shape[1] + j
+#         cv2.imwrite('input_patches/0269_patch_{}.jpg'.format(num), patch)
+#         # patch.save(f"patch_{num}.jpg")
+# import sys
+# sys.exit(0)
 
-# for dji in djis:
-#     # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
-#     # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
-#     # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
-#     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
-#     input = '/root/detectron2/DJI_{}.JPG'.format(dji)
-#     # input = '/root/detectron2/output_3/patch_7.jpg'
-#     result = inference_segmentor(model, input)
-
-#     output = show_result_pyplot(model, input, result, model.PALETTE)
-#     # print(output)
-#     # print(output.shape)
-#     import cv2
-#     cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
+for dji in djis:
+    # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+    # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
+    # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
+    # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
+    input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+    # input = '/root/detectron2/output_3/patch_7.jpg'
+    # get mask with palette indices (class indices)
+    result = inference_segmentor(model, input)
+    semseg = result[0]
+    # print(semseg)
+    import cv2
+    # get mask with palette color
+    img_with_palette = np.array(palette)[result[0]]
+    cv2.imwrite("semseg.png", img_with_palette[:,:,::-1])
+    # print(img_with_palette)
+    # print(np.unique(img_with_palette))
+    # print(img_with_palette.shape)
+    output = show_result_pyplot(model, input, result, model.PALETTE)
+    # print(output)
+    # print(np.unique(output))
+    # print(output.shape)
+    import cv2
+    # cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
 
 # import sys
 # sys.exit(0)
@@ -179,7 +190,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (balloon). (see https:
 # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
 cfg.TEST.EVAL_PERIOD = one_epoch
 cfg.SOLVER.CHECKPOINT_PERIOD = cfg.SOLVER.MAX_ITER + 1
-cfg.MODEL.DEVICE = 'cuda:0'
+cfg.MODEL.DEVICE = device
 cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
 # cfg.MODEL.PIXEL_{MEAN/STD}
 # cfg.MODEL.PIXEL_MEAN = [128.7035, 125.8532, 120.8661]
@@ -191,7 +202,7 @@ cfg.INPUT.MIN_SIZE_TRAIN = (256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 57
 # # Maximum size of the side of the image during training
 # cfg.INPUT.MAX_SIZE_TRAIN = 1333
 # # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-cfg.INPUT.MIN_SIZE_TEST = test_scale
+cfg.INPUT.MIN_SIZE_TEST = 1024
 cfg.INPUT.MAX_SIZE_TEST = 1024
 # # Maximum size of the side of the image during testing
 # cfg.INPUT.MAX_SIZE_TEST = 1333
@@ -299,15 +310,47 @@ for dji in djis:
     # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
     out, polygons = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
-    print(polygons) # use these polygons to find skeletons
+    # print(polygons) # use these polygons to find skeletons
+    # print(polygons[0].reshape(-1, 2))
     out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
     # apply rules here
 
-    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
+    # cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
     # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
 # combine part
 # output_1 = output
 # output_2 = out
 
+# draw polygon on mask
+polygons = polygons[0].reshape(-1, 2)
+polygons = np.append(polygons, polygons[0])
+polygons = np.array([polygons])
+polygons = polygons.reshape(-1, 2)
+# print(polygons)
+img = np.uint8(img_with_palette[:, :, ::-1])
+cv2.fillPoly(img, np.int32([polygons]), (0, 0, 0))
+cv2.imwrite("semseg_2.png", img)
+
+# find which component the crack is on
+# fillPoly help getting pixel coordinates covered by a polygon 
+# then we can use those coordinates to find pixel values 
+# Get the pixel values at the specified coordinates
+polygons = np.int32(polygons)
+print(semseg)
+print(polygons)
+pixel_values = semseg[polygons[:,0], polygons[:,1]]
+# Print the pixel values
+print(pixel_values)
+# find the most counted value
+# print(np.bincount(pixel_values).argmax())
+print("Most frequent value in above array")
+# count each labeled pixel into its own bin
+y = np.bincount(pixel_values, minlength=6)
+print(y)
+maximum = max(y)
+  
+for i in range(len(y)):
+    if y[i] == maximum:
+        print(i)
