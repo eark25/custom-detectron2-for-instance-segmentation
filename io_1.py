@@ -10,7 +10,7 @@ config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
 checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
-device = 'cuda:3'
+device = 'cuda:0'
 djis = ['0269', '0326']
 test_scale = 256
 thresh = 0.001
@@ -71,30 +71,30 @@ model.eval()
 # import sys
 # sys.exit(0)
 
-for dji in djis:
-    # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
-    # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
-    # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
-    # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
-    input = '/root/detectron2/DJI_{}.JPG'.format(dji)
-    # input = '/root/detectron2/output_3/patch_7.jpg'
-    # get mask with palette indices (class indices)
-    result = inference_segmentor(model, input)
-    semseg = result[0]
-    # print(semseg)
-    import cv2
-    # get mask with palette color
-    img_with_palette = np.array(palette)[result[0]]
-    cv2.imwrite("semseg.png", img_with_palette[:,:,::-1])
-    # print(img_with_palette)
-    # print(np.unique(img_with_palette))
-    # print(img_with_palette.shape)
-    output = show_result_pyplot(model, input, result, model.PALETTE)
-    # print(output)
-    # print(np.unique(output))
-    # print(output.shape)
-    import cv2
-    # cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
+# for dji in djis:
+#     # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
+#     # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
+#     # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
+#     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
+#     input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+#     # input = '/root/detectron2/output_3/patch_7.jpg'
+#     # get mask with palette indices (class indices)
+#     result = inference_segmentor(model, input)
+#     semseg = result[0]
+#     # print(semseg)
+#     import cv2
+#     # get mask with palette color
+#     img_with_palette = np.array(palette)[result[0]]
+#     cv2.imwrite("semseg.png", img_with_palette[:,:,::-1])
+#     # print(img_with_palette)
+#     # print(np.unique(img_with_palette))
+#     # print(img_with_palette.shape)
+#     output = show_result_pyplot(model, input, result, model.PALETTE)
+#     # print(output)
+#     # print(np.unique(output))
+#     # print(output.shape)
+#     import cv2
+#     # cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
 
 # import sys
 # sys.exit(0)
@@ -296,6 +296,17 @@ for dji in djis:
     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
     input = '/root/detectron2/DJI_{}.JPG'.format(dji)
     # input = '/root/detectron2/input_patches/0269_patch_{}.jpg'.format(i)
+    result = inference_segmentor(model, input)
+    semseg = result[0]
+    # print(semseg)
+    import cv2
+    # get mask with palette color
+    img_with_palette = np.array(palette)[result[0]]
+    cv2.imwrite("semseg_{}.png".format(dji), img_with_palette[:,:,::-1])
+    # print(img_with_palette)
+    # print(np.unique(img_with_palette))
+    # print(img_with_palette.shape)
+    # output = show_result_pyplot(model, input, result, model.PALETTE)
     print(input)
     im = cv2.imread(input)
     
@@ -312,7 +323,7 @@ for dji in djis:
     out, polygons = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
     # print(polygons) # use these polygons to find skeletons
     # print(polygons[0].reshape(-1, 2))
-    out = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
+    out, angles = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
     # apply rules here
 
@@ -323,34 +334,195 @@ for dji in djis:
 # output_1 = output
 # output_2 = out
 
-# draw polygon on mask
-polygons = polygons[0].reshape(-1, 2)
-polygons = np.append(polygons, polygons[0])
-polygons = np.array([polygons])
-polygons = polygons.reshape(-1, 2)
-# print(polygons)
-img = np.uint8(img_with_palette[:, :, ::-1])
-cv2.fillPoly(img, np.int32([polygons]), (0, 0, 0))
-cv2.imwrite("semseg_2.png", img)
+    for i, polygon in enumerate(polygons):
+        # draw polygon on mask
+        polygon = np.int32(polygon.reshape(-1, 2))
+        # polygons = np.append(polygons, polygons[0])
+        # # polygons = np.array([polygons])
+        # polygons = np.int32(polygons.reshape(-1, 2))
+        # print('closed polygon: ', polygon)
+        img = np.uint8(img_with_palette[:, :, ::-1])
+        # print(img)
+        # print(img.shape)
+        cv2.fillPoly(img, [polygon], (0, 0, 0))
+        cv2.imwrite("semseg_2_{}_{}.png".format(dji, i + 1), img)
 
-# find which component the crack is on
-# fillPoly help getting pixel coordinates covered by a polygon 
-# then we can use those coordinates to find pixel values 
-# Get the pixel values at the specified coordinates
-polygons = np.int32(polygons)
-print(semseg)
-print(polygons)
-pixel_values = semseg[polygons[:,0], polygons[:,1]]
-# Print the pixel values
-print(pixel_values)
-# find the most counted value
-# print(np.bincount(pixel_values).argmax())
-print("Most frequent value in above array")
-# count each labeled pixel into its own bin
-y = np.bincount(pixel_values, minlength=6)
-print(y)
-maximum = max(y)
-  
-for i in range(len(y)):
-    if y[i] == maximum:
-        print(i)
+        # get skeleton
+        from skimage.morphology import skeletonize
+        from skimage.filters import threshold_otsu
+        # create blank image
+        bin_img = np.zeros(semseg.shape, dtype=np.uint8)
+        # print(bin_img)
+        # print(bin_img.shape)
+        # fill polygon in the blank image
+        cv2.fillPoly(bin_img, [polygon], (255))
+        cv2.imwrite("bin_semseg_2_{}_{}.png".format(dji, i + 1), bin_img)
+        # Get the indices of non-zero elements in the image for future usage
+        # print(np.nonzero(bin_img))
+        area_affected_indices = np.transpose(np.nonzero(bin_img))[:, ::-1]
+        # print(area_affected_indices)
+        # print(area_affected_indices.shape)
+        # draw the affected area on a blank image
+        bin_img_affected = np.zeros(semseg.shape, dtype=np.uint8)
+        # for point in area_affected_indices:
+        #     cv2.circle(bin_img_affected, (int(point[0]), int(point[1])), 3, (255), 2)
+        # cv2.imwrite("bin_affected_semseg_2.png", bin_img_affected)
+        # number of pixels the crack affected
+        crack_area = area_affected_indices.shape[0]
+        # convert uint8 to binary image
+        bin_img = bin_img > threshold_otsu(bin_img)
+        # print(bin_img)
+        # print(bin_img.shape)
+        # convert skeleton image to uint8
+        skeleton = np.uint8(skeletonize(bin_img)) * 255
+        # print(skeleton)
+        # print(skeleton.shape)
+        # cv2.imwrite("skel_semseg_2_{}_{}.png".format(dji, i + 1), skeleton)
+
+        # find which component the crack is on
+        # fillPoly help getting pixel coordinates covered by a polygon 
+        # then we can use those coordinates to find pixel values 
+        # Get the pixel values at the specified coordinates
+        # polygons = np.int32(polygons)
+        # print(semseg)
+        # print(area_affected_indices)
+        pixel_values = semseg[area_affected_indices[:, 1], area_affected_indices[:, 0]]
+        # Print the pixel values
+        # print(pixel_values)
+        # find the most counted value
+        # print(np.bincount(pixel_values).argmax())
+        # print("Most frequent value in above array")
+        # count each labeled pixel into its own bin
+        area_affected_bin = np.bincount(pixel_values, minlength=6)
+        # print(area_affected_bin)
+        # maximum = max(area_affected_bin)
+        # maximum = 19472
+
+        # find class index to get area affected of that class
+        max_index = np.argmax(area_affected_bin)
+        # max_index = 1
+
+        # count labels in semseg result and find amount of each label store as a dict
+        uniques, counts = np.unique(semseg, return_counts=True)
+        # print(uniques)
+        # print(counts)
+        area_affected = dict(zip(uniques, counts))
+        # print(area_affected)
+
+        print('The detected crack is on {} component in this image.'.format(classes[max_index]))
+
+        # find crack density
+        # print(crack_area)
+        # print(area_affected[max_index])
+        density = crack_area / area_affected[max_index]
+        print(f'Crack density: {density * 100.00:.2f}%')
+
+        # find crack width
+        # find skeleton coordinates
+        skel_points = np.transpose(np.nonzero(skeleton))[:, ::-1]
+        # print(skel_points)
+        # print(skel_points.shape)
+
+        bin_skel = cv2.imread('bin_semseg_2_{}_{}.png'.format(dji, i + 1))
+        # cv2.fillPoly(bin_skel, [skel_points], (0))
+        # cv2.imwrite("bin_skel_semseg_2.png", bin_skel)
+
+        distances = []
+        for point in skel_points:
+            cv2.circle(bin_skel, (int(point[0]), int(point[1])), 3, (255), 2)
+            # print((int(poFint[0]), int(point[1])))
+            # point = tuple(point)
+            # Calculate distance of point to the nearest edge of the contour
+            distance = cv2.pointPolygonTest(polygon, (int(point[0]), int(point[1])), True)
+            # print(distance)
+            distances.append(distance)
+        # Calculate the average width of the crack
+        crack_width = sum(distances) / len(distances) * 2
+        # print(crack_width)
+        pixel_per_mm = 4000 / 9600
+        actual_width = crack_width * pixel_per_mm
+        print(f'Crack width: {actual_width:.2f} mm')
+        cv2.imwrite("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), bin_skel)
+
+        # find configurations
+        theta = angles[i] # example angle in degrees
+        print(f'Angle wrt horizontal line: {theta:.2f} degree')
+        abs_theta = abs(theta)
+        if abs_theta >= 0 and abs_theta < 45 or abs_theta > 135 and abs_theta < 225:
+            print("The angle is horizontal.")
+        elif theta > 90 and theta <= 270:
+            print("The angle is vertical.")
+        elif theta % 45 == 0:
+            print("The angle is diagonal.")
+        else:
+            print("The angle is not vertical, horizontal, or diagonal.")
+
+        # find position of the crack
+        '''
+        keywords:
+        middle fourths (middle 2)
+        left/right one fourths
+        top/bottom fourths (top/bottom 2?)
+        any
+        '''
+        h, w = semseg.shape
+        # print(h, w)
+        # print(centroid)
+        # or use crack coordinates of each axis depend on configuration
+        # find the part that each coordinate is on and the most two parts 
+        # will define which fourths the crack is on
+        # also depends on horizontal/vertical
+        horizontal = True
+        positions = []
+        for point in area_affected_indices:
+            x, y = point[0], point[1]
+            if horizontal:
+                if 0 <= x < w//4:
+                    positions.append(1)
+                elif w//4 <= x < w//2:
+                    positions.append(2)
+                elif w//2 <= x < 3*w//4:
+                    positions.append(3)
+                else:
+                    positions.append(4)
+            else:
+                if 0 <= y < h//4:
+                    positions.append(1)
+                elif h//4 <= y < h//2:
+                    positions.append(2)
+                elif h//2 <= y < 3*h//4:
+                    positions.append(3)
+                else:
+                    positions.append(4)
+
+        # print(positions)
+        each_positions = np.bincount(positions, minlength=5)
+        # print(each_positions)
+        ind = np.argpartition(each_positions, -2)[-2:][::-1]
+        # print(ind)
+        top_parts = ind[np.argsort(each_positions[ind])][::-1]
+        if each_positions[ind[1]] == 0:
+            # print("Index of the top 1 value:", ind[0])
+            top_parts = ind[np.argsort(each_positions[ind[0]])][::-1]
+        else:
+            # print("Indices of the top 2 values:", ind)
+            top_parts = ind[np.argsort(each_positions[ind])][::-1]
+        # print(top_parts)
+        if horizontal:
+            if top_parts[0] == 1:
+                print('Position: Left one fourth')
+            elif top_parts[0] == 4:
+                print('Position: Right one fourth')
+            else:
+                print('Position: Middle fourths')
+        else:
+            if 1 in top_parts and 2 in top_parts or 1 in top_parts:
+                print('Position: Top fourths')
+            elif 3 in top_parts and 4 in top_parts or 4 in top_parts:
+                print('Position: Bottom fourths')
+            else:
+                print('Position: Middle fourths')
+
+# final results
+# if 
+# return severity, action

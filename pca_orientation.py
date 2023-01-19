@@ -80,6 +80,7 @@ def getOutputOrientation(masks, img):
         print('Could not open or find any instance: ')
         exit(0)
 
+    angles = []
     for i in range(masks.shape[0]):
         mask = masks[i].to("cpu").long()
         # print('mask: ', mask)
@@ -101,7 +102,9 @@ def getOutputOrientation(masks, img):
             continue
         # print(obj) # swap this
         # print(obj.shape)
-        print('angle of mask {}:'.format(i+1), -(getOrientation(i+1, obj, img) * 180 / pi), 'degree')
+        angle = getOrientation(i+1, obj, img)
+        angles.append(-(angle * 180 / pi))
+        print('angle of crack {}:'.format(i+1), -(angle * 180 / pi), 'degree')
         # maybe use contour from prediction
         # contours, _ = cv.findContours(bw, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
         # print(contours)
@@ -123,5 +126,5 @@ def getOutputOrientation(masks, img):
         #     # Find the orientation of each shape
         #     getOrientation(i + 1, c, src)
         #     # break
-    return img
+    return img, angles
     # cv.imwrite('pca_crack.jpg', src)
