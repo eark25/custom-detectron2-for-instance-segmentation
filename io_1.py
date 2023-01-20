@@ -448,14 +448,19 @@ for dji in djis:
         theta = angles[i] # example angle in degrees
         print(f'Angle wrt horizontal line: {theta:.2f} degree')
         abs_theta = abs(theta)
-        if abs_theta >= 0 and abs_theta < 45 or abs_theta > 135 and abs_theta < 225:
-            print("The angle is horizontal.")
-        elif theta > 90 and theta <= 270:
-            print("The angle is vertical.")
-        elif theta % 45 == 0:
-            print("The angle is diagonal.")
+        abs_theta = abs_theta % 360
+        if (abs_theta >= 337.5 or abs_theta <= 22.5) or (abs_theta >= 157.5 and abs_theta <= 202.5):
+            direction = ["horizontal"]
+        elif (abs_theta > 22.5 and abs_theta < 45) or (abs_theta > 135 and abs_theta < 157.5) or (abs_theta > 202.5 and abs_theta < 225) or (abs_theta > 315 and abs_theta < 337.5):
+            direction = ["diagonal", "horizontal"]
+        elif (abs_theta >= 67.5 and abs_theta <= 112.5) or (abs_theta >= 247.5 and abs_theta <= 292.5):
+            direction = ["vertical"]
+        elif (abs_theta > 45 and abs_theta < 67.5) or (abs_theta > 112.5 and abs_theta < 135) or (abs_theta > 225 and abs_theta < 247.5) or (abs_theta > 292.5 and abs_theta < 315):
+            direction = ["diagonal", "vertical"]
         else:
-            print("The angle is not vertical, horizontal, or diagonal.")
+            direction = ["diagonal"]
+        print(direction)
+        
 
         # find position of the crack
         '''
@@ -472,11 +477,10 @@ for dji in djis:
         # find the part that each coordinate is on and the most two parts 
         # will define which fourths the crack is on
         # also depends on horizontal/vertical
-        horizontal = True
         positions = []
         for point in area_affected_indices:
             x, y = point[0], point[1]
-            if horizontal:
+            if "horizontal" in direction:
                 if 0 <= x < w//4:
                     positions.append(1)
                 elif w//4 <= x < w//2:
@@ -485,7 +489,7 @@ for dji in djis:
                     positions.append(3)
                 else:
                     positions.append(4)
-            else:
+            elif "vertical" in direction:
                 if 0 <= y < h//4:
                     positions.append(1)
                 elif h//4 <= y < h//2:
@@ -508,14 +512,14 @@ for dji in djis:
             # print("Indices of the top 2 values:", ind)
             top_parts = ind[np.argsort(each_positions[ind])][::-1]
         # print(top_parts)
-        if horizontal:
+        if "horizontal" in direction:
             if top_parts[0] == 1:
                 print('Position: Left one fourth')
             elif top_parts[0] == 4:
                 print('Position: Right one fourth')
             else:
                 print('Position: Middle fourths')
-        else:
+        elif "vertical" in direction:
             if 1 in top_parts and 2 in top_parts or 1 in top_parts:
                 print('Position: Top fourths')
             elif 3 in top_parts and 4 in top_parts or 4 in top_parts:

@@ -99,11 +99,17 @@ import cv2
 #     print('Middle fourths')
 
 
-import numpy as np
-
-arr = np.array([[1,2,3,4],
-                [5,3,6,8]])
-
-flipped_arr = np.transpose(arr)[:,::-1]
-
-print(flipped_arr)
+angle = 315
+angle = abs(angle)
+print(angle)
+angle = angle % 360
+if (angle >= 337.5 or angle <= 22.5) or (angle >= 157.5 and angle <= 202.5):
+    print("horizontal")
+elif (angle > 22.5 and angle < 45) or (angle > 135 and angle < 157.5) or (angle > 202.5 and angle < 225) or (angle > 315 and angle < 337.5):
+    print("diagonal: more horizontal")
+elif (angle >= 67.5 and angle <= 112.5) or (angle >= 247.5 and angle <= 292.5):
+    print("vertical")
+elif (angle > 45 and angle < 67.5) or (angle > 112.5 and angle < 135) or (angle > 225 and angle < 247.5) or (angle > 292.5 and angle < 315):
+    print("diagonal: more vertical")
+else:
+    print("diagonal")
