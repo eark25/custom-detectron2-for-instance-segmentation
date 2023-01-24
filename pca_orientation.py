@@ -104,7 +104,7 @@ def getOutputOrientation(masks, img):
         # print(obj.shape)
         angle = getOrientation(i+1, obj, img)
         angles.append(-(angle * 180 / pi))
-        print('angle of crack {}:'.format(i+1), -(angle * 180 / pi), 'degree')
+        # print('angle of crack {}:'.format(i+1), -(angle * 180 / pi), 'degree')
         # maybe use contour from prediction
         # contours, _ = cv.findContours(bw, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
         # print(contours)

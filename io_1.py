@@ -335,6 +335,7 @@ for dji in djis:
 # output_2 = out
 
     for i, polygon in enumerate(polygons):
+        print('Processing...')
         # draw polygon on mask
         polygon = np.int32(polygon.reshape(-1, 2))
         # polygons = np.append(polygons, polygons[0])
@@ -414,8 +415,8 @@ for dji in djis:
         # find crack density
         # print(crack_area)
         # print(area_affected[max_index])
-        density = crack_area / area_affected[max_index]
-        print(f'Crack density: {density * 100.00:.2f}%')
+        crack_density = crack_area / area_affected[max_index] * 100.00
+        print(f'Crack density: {crack_density:.2f}%')
 
         # find crack width
         # find skeleton coordinates
@@ -439,12 +440,12 @@ for dji in djis:
         # Calculate the average width of the crack
         crack_width = sum(distances) / len(distances) * 2
         # print(crack_width)
-        pixel_per_mm = 4000 / 9600
+        pixel_per_mm = 0.39
         actual_width = crack_width * pixel_per_mm
         print(f'Crack width: {actual_width:.2f} mm')
         cv2.imwrite("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), bin_skel)
 
-        # find configurations
+        # angle for configuration and position
         theta = angles[i] # example angle in degrees
         print(f'Angle wrt horizontal line: {theta:.2f} degree')
         abs_theta = abs(theta)
@@ -461,8 +462,244 @@ for dji in djis:
             direction = ["diagonal"]
         print(direction)
         
+        # for position
+        def find_top_parts(positions):
+            # print(positions)
+            each_positions = np.bincount(positions, minlength=5)
+            # print(each_positions)
+            ind = np.argpartition(each_positions, -2)[-2:][::-1]
+            # print(ind)
+            top_parts = ind[np.argsort(each_positions[ind])][::-1]
+            if each_positions[ind[1]] == 0:
+                # print("Index of the top 1 value:", ind[0])
+                top_parts = ind[np.argsort(each_positions[ind[0]])][::-1]
+            else:
+                # print("Indices of the top 2 values:", ind)
+                top_parts = ind[np.argsort(each_positions[ind])][::-1]
+            # print(top_parts)
+            return top_parts
 
-        # find position of the crack
+        def find_position(configuration):
+            positions = []
+            if configuration == 'transverse' or configuration == 'shear':
+                for point in area_affected_indices:
+                    x = point[0]
+                    if 0 <= x < w//4:
+                        positions.append(1)
+                    elif w//4 <= x < w//2:
+                        positions.append(2)
+                    elif w//2 <= x < 3*w//4:
+                        positions.append(3)
+                    else:
+                        positions.append(4)
+                # find most affected parts of the affected component
+                most_affected_parts = find_top_parts(positions)
+                if most_affected_parts[0] == 1:
+                    return 'Left one fourth'
+                elif most_affected_parts[0] == 4:
+                    return 'Right one fourth'
+                else:
+                    return 'Middle fourths'
+            elif configuration == 'longitudinal':
+                for point in area_affected_indices:
+                    y = point[1]
+                    if 0 <= y < h//4:
+                        positions.append(1)
+                    elif h//4 <= y < h//2:
+                        positions.append(2)
+                    elif h//2 <= y < 3*h//4:
+                        positions.append(3)
+                    else:
+                        positions.append(4)
+                # find most affected parts of the affected component
+                most_affected_parts = find_top_parts(positions)
+                if (1 in most_affected_parts and 2 in most_affected_parts) or 1 in most_affected_parts:
+                    return 'Top fourths'
+                elif (3 in most_affected_parts and 4 in most_affected_parts) or 4 in most_affected_parts:
+                    return 'Bottom fourths'
+                else:
+                    return 'Middle fourths'
+
+        def beam_severity_index(crack_density, actual_width, configuration, position):
+            # Lookup table 1: Beams
+            # action = severity_dict[severity_index]
+            if crack_density < 1.00:
+                if configuration == 'shear':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 3
+                    elif position == 'Middle fourths':
+                        return 2
+                elif configuration == 'transverse':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 2
+                    elif position == 'Middle fourths':
+                        return 3
+                elif configuration == 'longitudinal':
+                    if position == 'Middle fourths':
+                        return 2
+                    elif position == 'Top fourths' or position == 'Bottom fourths':
+                        return 3
+            elif (crack_density >= 1.00 and crack_density <= 3.00):
+                if configuration == 'shear':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 5
+                    elif position == 'Middle fourths':
+                        return 4
+                elif configuration == 'transverse':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 4
+                    elif position == 'Middle fourths':
+                        return 5
+                elif configuration == 'longitudinal':
+                    if position == 'Middle fourths':
+                        return 4
+                    elif position == 'Top fourths' or position == 'Bottom fourths':
+                        return 5
+            elif crack_density > 3.00:
+                if actual_width <= 5.00:
+                    if configuration == 'shear':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 7
+                        elif position == 'Middle fourths':
+                            return 6
+                    elif configuration == 'transverse':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 6
+                        elif position == 'Middle fourths':
+                            return 7
+                    elif configuration == 'longitudinal':
+                        if position == 'Middle fourths':
+                            return 6
+                        elif position == 'Top fourths' or position == 'Bottom fourths':
+                            return 7
+                else:
+                    return 8
+
+        def column_severity_index(crack_density, actual_width, configuration, position):
+            # Lookup table 1: Beams
+            # action = severity_dict[severity_index]
+            if crack_density < 1.00:
+                if configuration == 'shear':
+                    return 2
+                elif configuration == 'transverse':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 3
+                    elif position == 'Middle fourths':
+                        return 2
+                elif configuration == 'longitudinal':
+                    if position == 'Middle fourths':
+                        return 2
+                    elif position == 'Top fourths' or position == 'Bottom fourths':
+                        return 3
+            elif (crack_density >= 1.00 and crack_density <= 3.00):
+                if configuration == 'shear':
+                    return 4
+                elif configuration == 'transverse':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 5
+                    elif position == 'Middle fourths':
+                        return 4
+                elif configuration == 'longitudinal':
+                    if position == 'Middle fourths':
+                        return 4
+                    elif position == 'Top fourths' or position == 'Bottom fourths':
+                        return 5
+            elif crack_density > 3.00:
+                if actual_width <= 5.00:
+                    if configuration == 'shear':
+                        return 6
+                    elif configuration == 'transverse':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 7
+                        elif position == 'Middle fourths':
+                            return 6
+                    elif configuration == 'longitudinal':
+                        if position == 'Middle fourths':
+                            return 6
+                        elif position == 'Top fourths' or position == 'Bottom fourths':
+                            return 7
+                else:
+                    return 8
+
+        def wall_severity_index(crack_density, actual_width, configuration, position):
+            # Lookup table 1: Beams
+            # action = severity_dict[severity_index]
+            if crack_density < 1.00:
+                if configuration == 'shear':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 2
+                    elif position == 'Middle fourths':
+                        return 3
+                else:
+                    return 2
+            elif (crack_density >= 1.00 and crack_density <= 3.00):
+                if configuration == 'shear':
+                    if position == 'Left one fourth' or position == 'Right one fourth':
+                        return 4
+                    elif position == 'Middle fourths':
+                        return 5
+                else:
+                    return 4
+            elif crack_density > 3.00:
+                if actual_width <= 5.00:
+                    if configuration == 'shear':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 6
+                        elif position == 'Middle fourths':
+                            return 7
+                    else:
+                        return 6
+                else:
+                    return 8
+
+        h, w = semseg.shape
+        # configuration and position for lookup tables
+        # beam
+        if classes[max_index] == 'beam':
+            if 'diagonal' in direction:
+                configuration = 'shear'
+                position = find_position(configuration)
+                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+            elif 'vertical' in direction:
+                configuration = 'transverse'
+                position = find_position(configuration)
+                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+            elif 'horizontal' in direction:
+                configuration = 'longitudinal'
+                position = find_position(configuration)
+                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+
+        # column
+        if classes[max_index] == 'column':
+            if 'diagonal' in direction:
+                configuration = 'shear'
+                position = find_position(configuration)
+                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+            elif 'vertical' in direction:
+                configuration = 'longitudinal'
+                position = find_position(configuration)
+                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+            elif 'horizontal' in direction:
+                configuration = 'transverse'
+                position = find_position(configuration)
+                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+        
+        # wall
+        if classes[max_index] == 'wall':
+            if 'diagonal' in direction:
+                configuration = 'shear'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            elif 'vertical' in direction:
+                configuration = 'transverse'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            elif 'horizontal' in direction:
+                configuration = 'longitudinal'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+
+        
         '''
         keywords:
         middle fourths (middle 2)
@@ -470,63 +707,26 @@ for dji in djis:
         top/bottom fourths (top/bottom 2?)
         any
         '''
-        h, w = semseg.shape
+        
         # print(h, w)
         # print(centroid)
         # or use crack coordinates of each axis depend on configuration
         # find the part that each coordinate is on and the most two parts 
         # will define which fourths the crack is on
         # also depends on horizontal/vertical
-        positions = []
-        for point in area_affected_indices:
-            x, y = point[0], point[1]
-            if "horizontal" in direction:
-                if 0 <= x < w//4:
-                    positions.append(1)
-                elif w//4 <= x < w//2:
-                    positions.append(2)
-                elif w//2 <= x < 3*w//4:
-                    positions.append(3)
-                else:
-                    positions.append(4)
-            elif "vertical" in direction:
-                if 0 <= y < h//4:
-                    positions.append(1)
-                elif h//4 <= y < h//2:
-                    positions.append(2)
-                elif h//2 <= y < 3*h//4:
-                    positions.append(3)
-                else:
-                    positions.append(4)
+        print('Configuration: {}'.format(configuration))
+        print('Position: {} of the {}'.format(position, classes[max_index]))
+                
+        # final results
+        severity_dict = {
+            1: 'No action needed',
+            2: 'General repair but no detailed investigation required',
+            3: 'Confirmation by manual visual inspection and general repair',
+            4: 'Detailed investigation required',
+            5: 'Detailed investigation required and cracks to be sealed if needed',
+            6: 'Detailed investigation required and provide immediate protective measures if necessary',
+            7: 'Provide imediate protective measures and evacuate if necessary',
+            8: 'Evacuate the structure'
+        }
 
-        # print(positions)
-        each_positions = np.bincount(positions, minlength=5)
-        # print(each_positions)
-        ind = np.argpartition(each_positions, -2)[-2:][::-1]
-        # print(ind)
-        top_parts = ind[np.argsort(each_positions[ind])][::-1]
-        if each_positions[ind[1]] == 0:
-            # print("Index of the top 1 value:", ind[0])
-            top_parts = ind[np.argsort(each_positions[ind[0]])][::-1]
-        else:
-            # print("Indices of the top 2 values:", ind)
-            top_parts = ind[np.argsort(each_positions[ind])][::-1]
-        # print(top_parts)
-        if "horizontal" in direction:
-            if top_parts[0] == 1:
-                print('Position: Left one fourth')
-            elif top_parts[0] == 4:
-                print('Position: Right one fourth')
-            else:
-                print('Position: Middle fourths')
-        elif "vertical" in direction:
-            if 1 in top_parts and 2 in top_parts or 1 in top_parts:
-                print('Position: Top fourths')
-            elif 3 in top_parts and 4 in top_parts or 4 in top_parts:
-                print('Position: Bottom fourths')
-            else:
-                print('Position: Middle fourths')
-
-# final results
-# if 
-# return severity, action
+        print('Severity index for this crack: {}\nSuggested corrective action: {}'.format(severity_index, severity_dict[severity_index]))
