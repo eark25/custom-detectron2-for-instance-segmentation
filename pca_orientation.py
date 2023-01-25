@@ -98,7 +98,6 @@ def getOutputOrientation(masks, img):
             assert len(obj) != 0, 'no crack detected'
         except AssertionError as e:
             # import sys
-            # sys.exit(0)
             continue
         # print(obj) # swap this
         # print(obj.shape)
@@ -126,5 +125,7 @@ def getOutputOrientation(masks, img):
         #     # Find the orientation of each shape
         #     getOrientation(i + 1, c, src)
         #     # break
+    # print(angles)
+    # print(len(angles))
     return img, angles
     # cv.imwrite('pca_crack.jpg', src)

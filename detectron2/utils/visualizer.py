@@ -436,7 +436,7 @@ class Visualizer:
             )
             alpha = 0.3
 
-        self.output, segments = self.overlay_instances( # <<<<<<<<<<
+        self.output, instances = self.overlay_instances( # <<<<<<<<<<
             masks=masks,
             boxes=boxes,
             labels=labels,
@@ -444,7 +444,7 @@ class Visualizer:
             assigned_colors=colors,
             alpha=alpha,
         )
-        return self.output, segments # <<<<<<<<<<<<<
+        return self.output, instances # <<<<<<<<<<<<<
 
     def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8):
         """
@@ -656,6 +656,7 @@ class Visualizer:
             output (VisImage): image object with visualizations.
         """
         num_instances = 0
+        instances = {} # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         if boxes is not None:
             boxes = self._convert_boxes(boxes)
             num_instances = len(boxes)
@@ -676,7 +677,7 @@ class Visualizer:
         if assigned_colors is None:
             assigned_colors = [random_color(rgb=True, maximum=1) for _ in range(num_instances)]
         if num_instances == 0:
-            return self.output
+            return self.output, instances # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         if boxes is not None and boxes.shape[1] == 5:
             return self.overlay_rotated_instances(
                 boxes=boxes, labels=labels, assigned_colors=assigned_colors
@@ -698,7 +699,6 @@ class Visualizer:
             assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
             keypoints = keypoints[sorted_idxs] if keypoints is not None else None
 
-        segments = [] # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         for i in range(num_instances):
             color = assigned_colors[i]
             if boxes is not None:
@@ -706,10 +706,14 @@ class Visualizer:
 
             if masks is not None:
                 # print('here')
+                segment_list = [] # <<<<<<<<<<
                 for segment in masks[i].polygons:
                     # print('here 2')
-                    segments.append(segment)
+                    # store each polygon (if multiple) to the list of each instance
+                    segment_list.append(segment) # <<<<<<<<<<<<<<<<<<<<<<
                     self.draw_polygon(segment.reshape(-1, 2), color, alpha=alpha)
+                # each mask may contain multiple polygons
+                instances[i] = segment_list
 
             if labels is not None:
                 # first get a box
@@ -761,7 +765,7 @@ class Visualizer:
             for keypoints_per_instance in keypoints:
                 self.draw_and_connect_keypoints(keypoints_per_instance)
 
-        return self.output, segments # <<<<<<<<<<<<<<<<<<<<<<
+        return self.output, instances # <<<<<<<<<<<<<<<<<<<<<<
 
     def overlay_rotated_instances(self, boxes=None, labels=None, assigned_colors=None):
         """

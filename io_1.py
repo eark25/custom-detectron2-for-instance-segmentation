@@ -299,7 +299,12 @@ for dji in djis:
     result = inference_segmentor(model, input)
     semseg = result[0]
     # print(semseg)
+    output = show_result_pyplot(model, input, result, model.PALETTE)
+    # print(output)
+    # print(np.unique(output))
+    # print(output.shape)
     import cv2
+    cv2.imwrite('hrnet_imgnet_CLAHE_run/{}_{}_{}_CLAHE.jpg'.format(dji, test_scale, ratios), output)
     # get mask with palette color
     img_with_palette = np.array(palette)[result[0]]
     cv2.imwrite("semseg_{}.png".format(dji), img_with_palette[:,:,::-1])
@@ -320,43 +325,44 @@ for dji in djis:
     outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
     # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
-    out, polygons = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
-    # print(polygons) # use these polygons to find skeletons
+    out, instances = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+    # print(outputs) # use these polygons to find skeletons
+    # print(instances)
+    # print(len(instances))
     # print(polygons[0].reshape(-1, 2))
     out, angles = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
     # apply rules here
 
-    # cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
+    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
     # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
-# combine part
-# output_1 = output
-# output_2 = out
-
-    for i, polygon in enumerate(polygons):
+    for i, polygons in instances.items():
+    # for i, polygon in enumerate(instances):
         print('Processing...')
-        # draw polygon on mask
-        polygon = np.int32(polygon.reshape(-1, 2))
-        # polygons = np.append(polygons, polygons[0])
-        # # polygons = np.array([polygons])
-        # polygons = np.int32(polygons.reshape(-1, 2))
-        # print('closed polygon: ', polygon)
+        print('Crack number {}'.format(i + 1))
+        # create palette image from output
         img = np.uint8(img_with_palette[:, :, ::-1])
         # print(img)
         # print(img.shape)
-        cv2.fillPoly(img, [polygon], (0, 0, 0))
-        cv2.imwrite("semseg_2_{}_{}.png".format(dji, i + 1), img)
-
-        # get skeleton
-        from skimage.morphology import skeletonize
-        from skimage.filters import threshold_otsu
         # create blank image
         bin_img = np.zeros(semseg.shape, dtype=np.uint8)
         # print(bin_img)
         # print(bin_img.shape)
-        # fill polygon in the blank image
-        cv2.fillPoly(bin_img, [polygon], (255))
+        for polygon in polygons:
+            # draw polygon on mask
+            polygon = np.int32(polygon.reshape(-1, 2))
+            # polygons = np.append(polygons, polygons[0])
+            # # polygons = np.array([polygons])
+            # polygons = np.int32(polygons.reshape(-1, 2))
+            # print('closed polygon: ', polygon)
+            # fill polygon in the palette image
+            cv2.fillPoly(img, [polygon], (0, 0, 0))
+            # fill polygon in the blank image
+            cv2.fillPoly(bin_img, [polygon], (255))
+        # save palette image with the current instance
+        cv2.imwrite("semseg_2_{}_{}.png".format(dji, i + 1), img)
+        # save blank image with the current instance
         cv2.imwrite("bin_semseg_2_{}_{}.png".format(dji, i + 1), bin_img)
         # Get the indices of non-zero elements in the image for future usage
         # print(np.nonzero(bin_img))
@@ -370,6 +376,9 @@ for dji in djis:
         # cv2.imwrite("bin_affected_semseg_2.png", bin_img_affected)
         # number of pixels the crack affected
         crack_area = area_affected_indices.shape[0]
+        # get skeleton
+        from skimage.morphology import skeletonize
+        from skimage.filters import threshold_otsu
         # convert uint8 to binary image
         bin_img = bin_img > threshold_otsu(bin_img)
         # print(bin_img)
@@ -410,7 +419,7 @@ for dji in djis:
         area_affected = dict(zip(uniques, counts))
         # print(area_affected)
 
-        print('The detected crack is on {} component in this image.'.format(classes[max_index]))
+        print('The detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall'))
 
         # find crack density
         # print(crack_area)
@@ -670,7 +679,7 @@ for dji in djis:
                 severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
 
         # column
-        if classes[max_index] == 'column':
+        elif classes[max_index] == 'column':
             if 'diagonal' in direction:
                 configuration = 'shear'
                 position = find_position(configuration)
@@ -684,8 +693,8 @@ for dji in djis:
                 position = find_position(configuration)
                 severity_index = column_severity_index(crack_density, actual_width, configuration, position)
         
-        # wall
-        if classes[max_index] == 'wall':
+        # wall or undefined classes
+        elif classes[max_index] == 'wall' or classes[max_index] == 'background':
             if 'diagonal' in direction:
                 configuration = 'shear'
                 position = find_position(configuration)
@@ -699,6 +708,19 @@ for dji in djis:
                 position = find_position(configuration)
                 severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
 
+        else:
+            if 'diagonal' in direction:
+                configuration = 'shear'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            elif 'vertical' in direction:
+                configuration = 'transverse'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            elif 'horizontal' in direction:
+                configuration = 'longitudinal'
+                position = find_position(configuration)
+                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
         
         '''
         keywords:
@@ -715,7 +737,7 @@ for dji in djis:
         # will define which fourths the crack is on
         # also depends on horizontal/vertical
         print('Configuration: {}'.format(configuration))
-        print('Position: {} of the {}'.format(position, classes[max_index]))
+        print('Position: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall'))
                 
         # final results
         severity_dict = {
@@ -728,5 +750,7 @@ for dji in djis:
             7: 'Provide imediate protective measures and evacuate if necessary',
             8: 'Evacuate the structure'
         }
-
-        print('Severity index for this crack: {}\nSuggested corrective action: {}'.format(severity_index, severity_dict[severity_index]))
+        if classes[max_index] == 'beam' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
+            print('Severity index for this crack: {}\nSuggested corrective action: {}'.format(severity_index, severity_dict[severity_index]))
+        else:
+            print('Severity index for this crack: Not in the interested area')
