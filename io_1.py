@@ -10,8 +10,9 @@ config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
 checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
-device = 'cuda:0'
-djis = ['0269', '0326']
+device = 'cuda:3'
+# djis = ['0243', '0256', '0262', '0269', '0326']
+djis = ['0269']
 test_scale = 256
 thresh = 0.001
 ratios = [1.0, 2.0]
@@ -287,14 +288,26 @@ class Predictor(DefaultPredictor):
 predictor = Predictor(cfg)
 
 from detectron2.utils.visualizer import ColorMode, Visualizer
+from fpdf import FPDF
 
 for dji in djis:
+    pdf = FPDF()
+    pdf.add_page()
+    effective_page_width = pdf.w - 2 * pdf.l_margin
+    pdf.set_font('Times', '', 12)
+    # Margin
+    m = 10 
+    # Page width: Width of A4 is 210mm
+    pw = 210 - 2 * m
+# for dji in range(1):
+#     dji = dji + 3
 # for i in range(48):
     # input = '/root/mmsegmentation/data/buildingfacade/imgs/cmp_b0022.jpg'
     # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
     # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
     input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+    # input = '/root/detectron2/crack_imgs/test/images/DeepCrack_11177.jpg'
     # input = '/root/detectron2/input_patches/0269_patch_{}.jpg'.format(i)
     result = inference_segmentor(model, input)
     semseg = result[0]
@@ -326,6 +339,7 @@ for dji in djis:
     # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
     out, instances = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3_no_pca.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), np.array(out.get_image()[:, :, ::-1]))
     # print(outputs) # use these polygons to find skeletons
     # print(instances)
     # print(len(instances))
@@ -333,424 +347,476 @@ for dji in djis:
     out, angles = po.getOutputOrientation(outputs["instances"].pred_masks, np.array(out.get_image()[:, :, ::-1]))
 
     # apply rules here
-
+    
     cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
     # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
-    for i, polygons in instances.items():
-    # for i, polygon in enumerate(instances):
-        print('Processing...')
-        print('Crack number {}'.format(i + 1))
-        # create palette image from output
-        img = np.uint8(img_with_palette[:, :, ::-1])
-        # print(img)
-        # print(img.shape)
-        # create blank image
-        bin_img = np.zeros(semseg.shape, dtype=np.uint8)
-        # print(bin_img)
-        # print(bin_img.shape)
-        for polygon in polygons:
-            # draw polygon on mask
-            polygon = np.int32(polygon.reshape(-1, 2))
-            # polygons = np.append(polygons, polygons[0])
-            # # polygons = np.array([polygons])
-            # polygons = np.int32(polygons.reshape(-1, 2))
-            # print('closed polygon: ', polygon)
-            # fill polygon in the palette image
-            cv2.fillPoly(img, [polygon], (0, 0, 0))
-            # fill polygon in the blank image
-            cv2.fillPoly(bin_img, [polygon], (255))
-        # save palette image with the current instance
-        cv2.imwrite("semseg_2_{}_{}.png".format(dji, i + 1), img)
-        # save blank image with the current instance
-        cv2.imwrite("bin_semseg_2_{}_{}.png".format(dji, i + 1), bin_img)
-        # Get the indices of non-zero elements in the image for future usage
-        # print(np.nonzero(bin_img))
-        area_affected_indices = np.transpose(np.nonzero(bin_img))[:, ::-1]
-        # print(area_affected_indices)
-        # print(area_affected_indices.shape)
-        # draw the affected area on a blank image
-        bin_img_affected = np.zeros(semseg.shape, dtype=np.uint8)
-        # for point in area_affected_indices:
-        #     cv2.circle(bin_img_affected, (int(point[0]), int(point[1])), 3, (255), 2)
-        # cv2.imwrite("bin_affected_semseg_2.png", bin_img_affected)
-        # number of pixels the crack affected
-        crack_area = area_affected_indices.shape[0]
-        # get skeleton
-        from skimage.morphology import skeletonize
-        from skimage.filters import threshold_otsu
-        # convert uint8 to binary image
-        bin_img = bin_img > threshold_otsu(bin_img)
-        # print(bin_img)
-        # print(bin_img.shape)
-        # convert skeleton image to uint8
-        skeleton = np.uint8(skeletonize(bin_img)) * 255
-        # print(skeleton)
-        # print(skeleton.shape)
-        # cv2.imwrite("skel_semseg_2_{}_{}.png".format(dji, i + 1), skeleton)
+    pdf.image('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), x = None, y = None, w = effective_page_width, h = 0, type = 'JPEG')
+    pdf.ln(8)
 
-        # find which component the crack is on
-        # fillPoly help getting pixel coordinates covered by a polygon 
-        # then we can use those coordinates to find pixel values 
-        # Get the pixel values at the specified coordinates
-        # polygons = np.int32(polygons)
-        # print(semseg)
-        # print(area_affected_indices)
-        pixel_values = semseg[area_affected_indices[:, 1], area_affected_indices[:, 0]]
-        # Print the pixel values
-        # print(pixel_values)
-        # find the most counted value
-        # print(np.bincount(pixel_values).argmax())
-        # print("Most frequent value in above array")
-        # count each labeled pixel into its own bin
-        area_affected_bin = np.bincount(pixel_values, minlength=6)
-        # print(area_affected_bin)
-        # maximum = max(area_affected_bin)
-        # maximum = 19472
+    if len(instances) != 0:
+        for i, polygons in instances.items():
+        # for i, polygon in enumerate(instances):
+            print('Processing...')
+            print('Crack number {}'.format(i + 1))
+            # create palette image from output
+            img = np.uint8(img_with_palette[:, :, ::-1])
+            # print(img)
+            # print(img.shape)
+            # create blank image
+            bin_img = np.zeros(semseg.shape, dtype=np.uint8)
+            # print(bin_img)
+            # print(bin_img.shape)
+            for polygon in polygons:
+                # draw polygon on mask
+                polygon = np.int32(polygon.reshape(-1, 2))
+                # polygons = np.append(polygons, polygons[0])
+                # # polygons = np.array([polygons])
+                # polygons = np.int32(polygons.reshape(-1, 2))
+                # print('closed polygon: ', polygon)
+                # fill polygon in the palette image
+                cv2.fillPoly(img, [polygon], (0, 0, 0))
+                # fill polygon in the blank image
+                cv2.fillPoly(bin_img, [polygon], (255))
+            # save palette image with the current instance
+            cv2.imwrite("semseg_2_{}_{}.png".format(dji, i + 1), img)
+            # save blank image with the current instance
+            cv2.imwrite("bin_semseg_2_{}_{}.png".format(dji, i + 1), bin_img)
+            # Get the indices of non-zero elements in the image for future usage
+            # print(np.nonzero(bin_img))
+            area_affected_indices = np.transpose(np.nonzero(bin_img))[:, ::-1]
+            # print(area_affected_indices)
+            # print(area_affected_indices.shape)
+            # draw the affected area on a blank image
+            bin_img_affected = np.zeros(semseg.shape, dtype=np.uint8)
+            # for point in area_affected_indices:
+            #     cv2.circle(bin_img_affected, (int(point[0]), int(point[1])), 3, (255), 2)
+            # cv2.imwrite("bin_affected_semseg_2.png", bin_img_affected)
+            # number of pixels the crack affected
+            crack_area = area_affected_indices.shape[0]
+            # get skeleton
+            from skimage.morphology import skeletonize
+            from skimage.filters import threshold_otsu
+            # convert uint8 to binary image
+            bin_img = bin_img > threshold_otsu(bin_img)
+            # print(bin_img)
+            # print(bin_img.shape)
+            # convert skeleton image to uint8
+            skeleton = np.uint8(skeletonize(bin_img)) * 255
+            # print(skeleton)
+            # print(skeleton.shape)
+            # cv2.imwrite("skel_semseg_2_{}_{}.png".format(dji, i + 1), skeleton)
 
-        # find class index to get area affected of that class
-        max_index = np.argmax(area_affected_bin)
-        # max_index = 1
+            # find which component the crack is on
+            # fillPoly help getting pixel coordinates covered by a polygon 
+            # then we can use those coordinates to find pixel values 
+            # Get the pixel values at the specified coordinates
+            # polygons = np.int32(polygons)
+            # print(semseg)
+            # print(area_affected_indices)
+            pixel_values = semseg[area_affected_indices[:, 1], area_affected_indices[:, 0]]
+            # Print the pixel values
+            # print(pixel_values)
+            # find the most counted value
+            # print(np.bincount(pixel_values).argmax())
+            # print("Most frequent value in above array")
+            # count each labeled pixel into its own bin
+            area_affected_bin = np.bincount(pixel_values, minlength=6)
+            # print(area_affected_bin)
+            # maximum = max(area_affected_bin)
+            # maximum = 19472
 
-        # count labels in semseg result and find amount of each label store as a dict
-        uniques, counts = np.unique(semseg, return_counts=True)
-        # print(uniques)
-        # print(counts)
-        area_affected = dict(zip(uniques, counts))
-        # print(area_affected)
+            # find class index to get area affected of that class
+            max_index = np.argmax(area_affected_bin)
+            # max_index = 1
 
-        print('The detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall'))
+            # count labels in semseg result and find amount of each label store as a dict
+            uniques, counts = np.unique(semseg, return_counts=True)
+            # print(uniques)
+            # print(counts)
+            area_affected = dict(zip(uniques, counts))
+            # print(area_affected)
 
-        # find crack density
-        # print(crack_area)
-        # print(area_affected[max_index])
-        crack_density = crack_area / area_affected[max_index] * 100.00
-        print(f'Crack density: {crack_density:.2f}%')
+            print('The detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall'))
 
-        # find crack width
-        # find skeleton coordinates
-        skel_points = np.transpose(np.nonzero(skeleton))[:, ::-1]
-        # print(skel_points)
-        # print(skel_points.shape)
+            # find crack density
+            # print(crack_area)
+            # print(area_affected[max_index])
+            crack_density = crack_area / area_affected[max_index] * 100.00
+            print(f'Crack density: {crack_density:.2f}%')
 
-        bin_skel = cv2.imread('bin_semseg_2_{}_{}.png'.format(dji, i + 1))
-        # cv2.fillPoly(bin_skel, [skel_points], (0))
-        # cv2.imwrite("bin_skel_semseg_2.png", bin_skel)
+            # find crack width
+            # find skeleton coordinates
+            skel_points = np.transpose(np.nonzero(skeleton))[:, ::-1]
+            # print(skel_points)
+            # print(skel_points.shape)
 
-        distances = []
-        for point in skel_points:
-            cv2.circle(bin_skel, (int(point[0]), int(point[1])), 3, (255), 2)
-            # print((int(poFint[0]), int(point[1])))
-            # point = tuple(point)
-            # Calculate distance of point to the nearest edge of the contour
-            distance = cv2.pointPolygonTest(polygon, (int(point[0]), int(point[1])), True)
-            # print(distance)
-            distances.append(distance)
-        # Calculate the average width of the crack
-        crack_width = sum(distances) / len(distances) * 2
-        # print(crack_width)
-        pixel_per_mm = 0.39
-        actual_width = crack_width * pixel_per_mm
-        print(f'Crack width: {actual_width:.2f} mm')
-        cv2.imwrite("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), bin_skel)
+            bin_skel = cv2.imread('bin_semseg_2_{}_{}.png'.format(dji, i + 1))
+            # cv2.fillPoly(bin_skel, [skel_points], (0))
+            # cv2.imwrite("bin_skel_semseg_2.png", bin_skel)
 
-        # angle for configuration and position
-        theta = angles[i] # example angle in degrees
-        print(f'Angle wrt horizontal line: {theta:.2f} degree')
-        abs_theta = abs(theta)
-        abs_theta = abs_theta % 360
-        if (abs_theta >= 337.5 or abs_theta <= 22.5) or (abs_theta >= 157.5 and abs_theta <= 202.5):
-            direction = ["horizontal"]
-        elif (abs_theta > 22.5 and abs_theta < 45) or (abs_theta > 135 and abs_theta < 157.5) or (abs_theta > 202.5 and abs_theta < 225) or (abs_theta > 315 and abs_theta < 337.5):
-            direction = ["diagonal", "horizontal"]
-        elif (abs_theta >= 67.5 and abs_theta <= 112.5) or (abs_theta >= 247.5 and abs_theta <= 292.5):
-            direction = ["vertical"]
-        elif (abs_theta > 45 and abs_theta < 67.5) or (abs_theta > 112.5 and abs_theta < 135) or (abs_theta > 225 and abs_theta < 247.5) or (abs_theta > 292.5 and abs_theta < 315):
-            direction = ["diagonal", "vertical"]
-        else:
-            direction = ["diagonal"]
-        print(direction)
-        
-        # for position
-        def find_top_parts(positions):
-            # print(positions)
-            each_positions = np.bincount(positions, minlength=5)
-            # print(each_positions)
-            ind = np.argpartition(each_positions, -2)[-2:][::-1]
-            # print(ind)
-            top_parts = ind[np.argsort(each_positions[ind])][::-1]
-            if each_positions[ind[1]] == 0:
-                # print("Index of the top 1 value:", ind[0])
-                top_parts = ind[np.argsort(each_positions[ind[0]])][::-1]
+            distances = []
+            for point in skel_points:
+                cv2.circle(bin_skel, (int(point[0]), int(point[1])), 3, (255), 2)
+                # print((int(poFint[0]), int(point[1])))
+                # point = tuple(point)
+                # Calculate distance of point to the nearest edge of the contour
+                distance = cv2.pointPolygonTest(polygon, (int(point[0]), int(point[1])), True)
+                # print(distance)
+                distances.append(distance)
+            # Calculate the average width of the crack
+            crack_width = sum(distances) / len(distances) * 2
+            # print(crack_width)
+            pixel_per_mm = 0.39
+            actual_width = crack_width * pixel_per_mm
+            print(f'Crack width: {actual_width:.2f} mm')
+            cv2.imwrite("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), bin_skel)
+
+            current_x = pdf.get_x()
+            current_y = pdf.get_y()
+            pdf.image("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), x = None, y = None, w = effective_page_width/3, h = 0, type = 'PNG')    
+            
+            # angle for configuration and position
+            theta = angles[i] # example angle in degrees
+            print(f'Angle wrt horizontal line: {theta:.2f} degree')
+            abs_theta = abs(theta)
+            abs_theta = abs_theta % 360
+            if (abs_theta >= 337.5 or abs_theta <= 22.5) or (abs_theta >= 157.5 and abs_theta <= 202.5):
+                direction = ["horizontal"]
+            elif (abs_theta > 22.5 and abs_theta < 45) or (abs_theta > 135 and abs_theta < 157.5) or (abs_theta > 202.5 and abs_theta < 225) or (abs_theta > 315 and abs_theta < 337.5):
+                direction = ["diagonal", "horizontal"]
+            elif (abs_theta >= 67.5 and abs_theta <= 112.5) or (abs_theta >= 247.5 and abs_theta <= 292.5):
+                direction = ["vertical"]
+            elif (abs_theta > 45 and abs_theta < 67.5) or (abs_theta > 112.5 and abs_theta < 135) or (abs_theta > 225 and abs_theta < 247.5) or (abs_theta > 292.5 and abs_theta < 315):
+                direction = ["diagonal", "vertical"]
             else:
-                # print("Indices of the top 2 values:", ind)
+                direction = ["diagonal"]
+            print(direction)
+            
+            # for position
+            def find_top_parts(positions):
+                # print(positions)
+                each_positions = np.bincount(positions, minlength=5)
+                # print(each_positions)
+                ind = np.argpartition(each_positions, -2)[-2:][::-1]
+                # print(ind)
                 top_parts = ind[np.argsort(each_positions[ind])][::-1]
-            # print(top_parts)
-            return top_parts
-
-        def find_position(configuration):
-            positions = []
-            if configuration == 'transverse' or configuration == 'shear':
-                for point in area_affected_indices:
-                    x = point[0]
-                    if 0 <= x < w//4:
-                        positions.append(1)
-                    elif w//4 <= x < w//2:
-                        positions.append(2)
-                    elif w//2 <= x < 3*w//4:
-                        positions.append(3)
-                    else:
-                        positions.append(4)
-                # find most affected parts of the affected component
-                most_affected_parts = find_top_parts(positions)
-                if most_affected_parts[0] == 1:
-                    return 'Left one fourth'
-                elif most_affected_parts[0] == 4:
-                    return 'Right one fourth'
+                if each_positions[ind[1]] == 0:
+                    # print("Index of the top 1 value:", ind[0])
+                    top_parts = ind[np.argsort(each_positions[ind[0]])][::-1]
                 else:
-                    return 'Middle fourths'
-            elif configuration == 'longitudinal':
-                for point in area_affected_indices:
-                    y = point[1]
-                    if 0 <= y < h//4:
-                        positions.append(1)
-                    elif h//4 <= y < h//2:
-                        positions.append(2)
-                    elif h//2 <= y < 3*h//4:
-                        positions.append(3)
-                    else:
-                        positions.append(4)
-                # find most affected parts of the affected component
-                most_affected_parts = find_top_parts(positions)
-                if (1 in most_affected_parts and 2 in most_affected_parts) or 1 in most_affected_parts:
-                    return 'Top fourths'
-                elif (3 in most_affected_parts and 4 in most_affected_parts) or 4 in most_affected_parts:
-                    return 'Bottom fourths'
-                else:
-                    return 'Middle fourths'
+                    # print("Indices of the top 2 values:", ind)
+                    top_parts = ind[np.argsort(each_positions[ind])][::-1]
+                # print(top_parts)
+                return top_parts
 
-        def beam_severity_index(crack_density, actual_width, configuration, position):
-            # Lookup table 1: Beams
-            # action = severity_dict[severity_index]
-            if crack_density < 1.00:
-                if configuration == 'shear':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 3
-                    elif position == 'Middle fourths':
-                        return 2
-                elif configuration == 'transverse':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 2
-                    elif position == 'Middle fourths':
-                        return 3
+            def find_position(configuration):
+                positions = []
+                if configuration == 'transverse' or configuration == 'shear':
+                    for point in area_affected_indices:
+                        x = point[0]
+                        if 0 <= x < w//4:
+                            positions.append(1)
+                        elif w//4 <= x < w//2:
+                            positions.append(2)
+                        elif w//2 <= x < 3*w//4:
+                            positions.append(3)
+                        else:
+                            positions.append(4)
+                    # find most affected parts of the affected component
+                    most_affected_parts = find_top_parts(positions)
+                    if most_affected_parts[0] == 1:
+                        return 'Left one fourth'
+                    elif most_affected_parts[0] == 4:
+                        return 'Right one fourth'
+                    else:
+                        return 'Middle fourths'
                 elif configuration == 'longitudinal':
-                    if position == 'Middle fourths':
-                        return 2
-                    elif position == 'Top fourths' or position == 'Bottom fourths':
-                        return 3
-            elif (crack_density >= 1.00 and crack_density <= 3.00):
-                if configuration == 'shear':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 5
-                    elif position == 'Middle fourths':
-                        return 4
-                elif configuration == 'transverse':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 4
-                    elif position == 'Middle fourths':
-                        return 5
-                elif configuration == 'longitudinal':
-                    if position == 'Middle fourths':
-                        return 4
-                    elif position == 'Top fourths' or position == 'Bottom fourths':
-                        return 5
-            elif crack_density > 3.00:
-                if actual_width <= 5.00:
+                    for point in area_affected_indices:
+                        y = point[1]
+                        if 0 <= y < h//4:
+                            positions.append(1)
+                        elif h//4 <= y < h//2:
+                            positions.append(2)
+                        elif h//2 <= y < 3*h//4:
+                            positions.append(3)
+                        else:
+                            positions.append(4)
+                    # find most affected parts of the affected component
+                    most_affected_parts = find_top_parts(positions)
+                    if (1 in most_affected_parts and 2 in most_affected_parts) or 1 in most_affected_parts:
+                        return 'Top fourths'
+                    elif (3 in most_affected_parts and 4 in most_affected_parts) or 4 in most_affected_parts:
+                        return 'Bottom fourths'
+                    else:
+                        return 'Middle fourths'
+
+            def beam_severity_index(crack_density, actual_width, configuration, position):
+                # Lookup table 1: Beams
+                # action = severity_dict[severity_index]
+                if crack_density < 1.00:
                     if configuration == 'shear':
                         if position == 'Left one fourth' or position == 'Right one fourth':
-                            return 7
+                            return 3
                         elif position == 'Middle fourths':
-                            return 6
+                            return 2
                     elif configuration == 'transverse':
                         if position == 'Left one fourth' or position == 'Right one fourth':
-                            return 6
+                            return 2
                         elif position == 'Middle fourths':
-                            return 7
+                            return 3
                     elif configuration == 'longitudinal':
                         if position == 'Middle fourths':
-                            return 6
+                            return 2
                         elif position == 'Top fourths' or position == 'Bottom fourths':
-                            return 7
-                else:
-                    return 8
-
-        def column_severity_index(crack_density, actual_width, configuration, position):
-            # Lookup table 1: Beams
-            # action = severity_dict[severity_index]
-            if crack_density < 1.00:
-                if configuration == 'shear':
-                    return 2
-                elif configuration == 'transverse':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 3
-                    elif position == 'Middle fourths':
-                        return 2
-                elif configuration == 'longitudinal':
-                    if position == 'Middle fourths':
-                        return 2
-                    elif position == 'Top fourths' or position == 'Bottom fourths':
-                        return 3
-            elif (crack_density >= 1.00 and crack_density <= 3.00):
-                if configuration == 'shear':
-                    return 4
-                elif configuration == 'transverse':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
-                        return 5
-                    elif position == 'Middle fourths':
-                        return 4
-                elif configuration == 'longitudinal':
-                    if position == 'Middle fourths':
-                        return 4
-                    elif position == 'Top fourths' or position == 'Bottom fourths':
-                        return 5
-            elif crack_density > 3.00:
-                if actual_width <= 5.00:
+                            return 3
+                elif (crack_density >= 1.00 and crack_density <= 3.00):
                     if configuration == 'shear':
-                        return 6
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 5
+                        elif position == 'Middle fourths':
+                            return 4
                     elif configuration == 'transverse':
                         if position == 'Left one fourth' or position == 'Right one fourth':
-                            return 7
+                            return 4
                         elif position == 'Middle fourths':
-                            return 6
+                            return 5
                     elif configuration == 'longitudinal':
                         if position == 'Middle fourths':
-                            return 6
+                            return 4
                         elif position == 'Top fourths' or position == 'Bottom fourths':
-                            return 7
-                else:
-                    return 8
+                            return 5
+                elif crack_density > 3.00:
+                    if actual_width <= 5.00:
+                        if configuration == 'shear':
+                            if position == 'Left one fourth' or position == 'Right one fourth':
+                                return 7
+                            elif position == 'Middle fourths':
+                                return 6
+                        elif configuration == 'transverse':
+                            if position == 'Left one fourth' or position == 'Right one fourth':
+                                return 6
+                            elif position == 'Middle fourths':
+                                return 7
+                        elif configuration == 'longitudinal':
+                            if position == 'Middle fourths':
+                                return 6
+                            elif position == 'Top fourths' or position == 'Bottom fourths':
+                                return 7
+                    else:
+                        return 8
 
-        def wall_severity_index(crack_density, actual_width, configuration, position):
-            # Lookup table 1: Beams
-            # action = severity_dict[severity_index]
-            if crack_density < 1.00:
-                if configuration == 'shear':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
+            def column_severity_index(crack_density, actual_width, configuration, position):
+                # Lookup table 1: Beams
+                # action = severity_dict[severity_index]
+                if crack_density < 1.00:
+                    if configuration == 'shear':
                         return 2
-                    elif position == 'Middle fourths':
-                        return 3
-                else:
-                    return 2
-            elif (crack_density >= 1.00 and crack_density <= 3.00):
-                if configuration == 'shear':
-                    if position == 'Left one fourth' or position == 'Right one fourth':
+                    elif configuration == 'transverse':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 3
+                        elif position == 'Middle fourths':
+                            return 2
+                    elif configuration == 'longitudinal':
+                        if position == 'Middle fourths':
+                            return 2
+                        elif position == 'Top fourths' or position == 'Bottom fourths':
+                            return 3
+                elif (crack_density >= 1.00 and crack_density <= 3.00):
+                    if configuration == 'shear':
                         return 4
-                    elif position == 'Middle fourths':
-                        return 5
-                else:
-                    return 4
-            elif crack_density > 3.00:
-                if actual_width <= 5.00:
+                    elif configuration == 'transverse':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 5
+                        elif position == 'Middle fourths':
+                            return 4
+                    elif configuration == 'longitudinal':
+                        if position == 'Middle fourths':
+                            return 4
+                        elif position == 'Top fourths' or position == 'Bottom fourths':
+                            return 5
+                elif crack_density > 3.00:
+                    if actual_width <= 5.00:
+                        if configuration == 'shear':
+                            return 6
+                        elif configuration == 'transverse':
+                            if position == 'Left one fourth' or position == 'Right one fourth':
+                                return 7
+                            elif position == 'Middle fourths':
+                                return 6
+                        elif configuration == 'longitudinal':
+                            if position == 'Middle fourths':
+                                return 6
+                            elif position == 'Top fourths' or position == 'Bottom fourths':
+                                return 7
+                    else:
+                        return 8
+
+            def wall_severity_index(crack_density, actual_width, configuration, position):
+                # Lookup table 1: Beams
+                # action = severity_dict[severity_index]
+                if crack_density < 1.00:
                     if configuration == 'shear':
                         if position == 'Left one fourth' or position == 'Right one fourth':
-                            return 6
+                            return 2
                         elif position == 'Middle fourths':
-                            return 7
+                            return 3
                     else:
-                        return 6
-                else:
-                    return 8
+                        return 2
+                elif (crack_density >= 1.00 and crack_density <= 3.00):
+                    if configuration == 'shear':
+                        if position == 'Left one fourth' or position == 'Right one fourth':
+                            return 4
+                        elif position == 'Middle fourths':
+                            return 5
+                    else:
+                        return 4
+                elif crack_density > 3.00:
+                    if actual_width <= 5.00:
+                        if configuration == 'shear':
+                            if position == 'Left one fourth' or position == 'Right one fourth':
+                                return 6
+                            elif position == 'Middle fourths':
+                                return 7
+                        else:
+                            return 6
+                    else:
+                        return 8
 
-        h, w = semseg.shape
-        # configuration and position for lookup tables
-        # beam
-        if classes[max_index] == 'beam':
-            if 'diagonal' in direction:
-                configuration = 'shear'
-                position = find_position(configuration)
-                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
-            elif 'vertical' in direction:
-                configuration = 'transverse'
-                position = find_position(configuration)
-                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
-            elif 'horizontal' in direction:
-                configuration = 'longitudinal'
-                position = find_position(configuration)
-                severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+            h, w = semseg.shape
+            # configuration and position for lookup tables
+            # beam
+            if classes[max_index] == 'floor':
+                if 'diagonal' in direction:
+                    configuration = 'shear'
+                    position = find_position(configuration)
+                    severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+                elif 'vertical' in direction:
+                    configuration = 'transverse'
+                    position = find_position(configuration)
+                    severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
+                elif 'horizontal' in direction:
+                    configuration = 'longitudinal'
+                    position = find_position(configuration)
+                    severity_index = beam_severity_index(crack_density, actual_width, configuration, position)
 
-        # column
-        elif classes[max_index] == 'column':
-            if 'diagonal' in direction:
-                configuration = 'shear'
-                position = find_position(configuration)
-                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
-            elif 'vertical' in direction:
-                configuration = 'longitudinal'
-                position = find_position(configuration)
-                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
-            elif 'horizontal' in direction:
-                configuration = 'transverse'
-                position = find_position(configuration)
-                severity_index = column_severity_index(crack_density, actual_width, configuration, position)
-        
-        # wall or undefined classes
-        elif classes[max_index] == 'wall' or classes[max_index] == 'background':
-            if 'diagonal' in direction:
-                configuration = 'shear'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
-            elif 'vertical' in direction:
-                configuration = 'transverse'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
-            elif 'horizontal' in direction:
-                configuration = 'longitudinal'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            # column
+            elif classes[max_index] == 'column':
+                if 'diagonal' in direction:
+                    configuration = 'shear'
+                    position = find_position(configuration)
+                    severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+                elif 'vertical' in direction:
+                    configuration = 'longitudinal'
+                    position = find_position(configuration)
+                    severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+                elif 'horizontal' in direction:
+                    configuration = 'transverse'
+                    position = find_position(configuration)
+                    severity_index = column_severity_index(crack_density, actual_width, configuration, position)
+            
+            # wall or undefined classes
+            elif classes[max_index] == 'wall' or classes[max_index] == 'background':
+                if 'diagonal' in direction:
+                    configuration = 'shear'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+                elif 'vertical' in direction:
+                    configuration = 'transverse'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+                elif 'horizontal' in direction:
+                    configuration = 'longitudinal'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
 
-        else:
-            if 'diagonal' in direction:
-                configuration = 'shear'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
-            elif 'vertical' in direction:
-                configuration = 'transverse'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
-            elif 'horizontal' in direction:
-                configuration = 'longitudinal'
-                position = find_position(configuration)
-                severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
-        
-        '''
-        keywords:
-        middle fourths (middle 2)
-        left/right one fourths
-        top/bottom fourths (top/bottom 2?)
-        any
-        '''
-        
-        # print(h, w)
-        # print(centroid)
-        # or use crack coordinates of each axis depend on configuration
-        # find the part that each coordinate is on and the most two parts 
-        # will define which fourths the crack is on
-        # also depends on horizontal/vertical
-        print('Configuration: {}'.format(configuration))
-        print('Position: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall'))
-                
-        # final results
-        severity_dict = {
-            1: 'No action needed',
-            2: 'General repair but no detailed investigation required',
-            3: 'Confirmation by manual visual inspection and general repair',
-            4: 'Detailed investigation required',
-            5: 'Detailed investigation required and cracks to be sealed if needed',
-            6: 'Detailed investigation required and provide immediate protective measures if necessary',
-            7: 'Provide imediate protective measures and evacuate if necessary',
-            8: 'Evacuate the structure'
-        }
-        if classes[max_index] == 'beam' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
-            print('Severity index for this crack: {}\nSuggested corrective action: {}'.format(severity_index, severity_dict[severity_index]))
-        else:
-            print('Severity index for this crack: Not in the interested area')
+            else:
+                if 'diagonal' in direction:
+                    configuration = 'shear'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+                elif 'vertical' in direction:
+                    configuration = 'transverse'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+                elif 'horizontal' in direction:
+                    configuration = 'longitudinal'
+                    position = find_position(configuration)
+                    severity_index = wall_severity_index(crack_density, actual_width, configuration, position)
+            
+            '''
+            keywords:
+            middle fourths (middle 2)
+            left/right one fourths
+            top/bottom fourths (top/bottom 2?)
+            any
+            '''
+            
+            # print(h, w)
+            # print(centroid)
+            # or use crack coordinates of each axis depend on configuration
+            # find the part that each coordinate is on and the most two parts 
+            # will define which fourths the crack is on
+            # also depends on horizontal/vertical
+            print('Configuration: {}'.format(configuration))
+            print('Position: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall'))
+                    
+            # final results
+            severity_dict = {
+                1: 'No action needed',
+                2: 'General repair but no detailed investigation required',
+                3: 'Confirmation by manual visual inspection and general repair',
+                4: 'Detailed investigation required',
+                5: 'Detailed investigation required and cracks to be sealed if needed',
+                6: 'Detailed investigation required and provide immediate protective measures if necessary',
+                7: 'Provide imediate protective measures and evacuate if necessary',
+                8: 'Evacuate the structure'
+            }
+            if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
+                print('Severity index for this crack: {}\nSuggested corrective action: {}'.format(severity_index, severity_dict[severity_index]))
+            else:
+                print('Severity index for this crack: Not in the interested area')
+            print('=' * 30)
+
+            # write to pdf
+            pdf.ln(8)
+            # pdf.cell(w=0, h=5, txt='Crack number {}'.format(i + 1), ln=1)
+            # pdf.cell(w=0, h=5, txt='The detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall'), ln=1)
+            # pdf.cell(w=0, h=5, txt=f'Crack density: {crack_density:.2f}%', ln=1)
+            # pdf.cell(w=0, h=5, txt=f'Crack width: {actual_width:.2f} mm', ln=1)
+            # pdf.cell(w=0, h=5, txt=f'Angle wrt horizontal line: {theta:.2f} degree', ln=1)
+            # pdf.cell(w=0, h=5, txt='Configuration: {}'.format(configuration), ln=1)
+            # pdf.cell(w=0, h=5, txt='Position: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall'), ln=1)
+            # if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
+            #     pdf.cell(w=0, h=5, txt='Severity index for this crack: {}'.format(severity_index), ln=1)
+            #     pdf.cell(w=0, h=5, txt='Suggested corrective action: {}'.format(severity_dict[severity_index]), ln=1)
+            
+            # else:
+            #     pdf.cell(w=0, h=5, txt='Severity index for this crack: Not in the interested area', ln=1)
+            
+            pdf.set_xy(current_x + effective_page_width*1/3, current_y)
+            if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
+                pdf.multi_cell(w=effective_page_width*2/3, h=5, txt='Crack number {}'.format(i + 1)
+                +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
+                +f'\nCrack density: {crack_density:.2f}%'
+                +f'\nCrack width: {actual_width:.2f} mm'
+                +f'\nAngle wrt horizontal line: {theta:.2f} degree'
+                +'\nConfiguration: {}'.format(configuration)
+                +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
+                +'\nSeverity index for this crack: {}'.format(severity_index)
+                +'\nSuggested corrective action: {}'.format(severity_dict[severity_index]))
+            else:
+                pdf.multi_cell(w=effective_page_width*2/3, h=5, txt='Crack number {}'.format(i + 1)
+                +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
+                +f'\nCrack density: {crack_density:.2f}%'
+                +f'\nCrack width: {actual_width:.2f} mm'
+                +f'\nAngle wrt horizontal line: {theta:.2f} degree'
+                +'\nConfiguration: {}'.format(configuration)
+                +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
+                +'\nSeverity index for this crack: Not in the interested area')
+
+    else:
+        print('No crack detected')
+        print('=' * 30)
+
+    pdf.output(f'./example.pdf', 'F')
