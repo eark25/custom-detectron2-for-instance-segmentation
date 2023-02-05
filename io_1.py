@@ -294,7 +294,7 @@ for dji in djis:
     pdf = FPDF()
     pdf.add_page()
     effective_page_width = pdf.w - 2 * pdf.l_margin
-    pdf.set_font('Times', '', 12)
+    pdf.set_font('Times', '', 10)
     # Margin
     m = 10 
     # Page width: Width of A4 is 210mm
@@ -474,8 +474,9 @@ for dji in djis:
 
             current_x = pdf.get_x()
             current_y = pdf.get_y()
-            pdf.image("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), x = None, y = None, w = effective_page_width/3, h = 0, type = 'PNG')    
-            
+            pdf.image("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), x = None, y = None, w = effective_page_width/3 + 5, h = 0, type = 'PNG')    
+            # pdf.ln(8)
+
             # angle for configuration and position
             theta = angles[i] # example angle in degrees
             print(f'Angle wrt horizontal line: {theta:.2f} degree')
@@ -779,7 +780,7 @@ for dji in djis:
             print('=' * 30)
 
             # write to pdf
-            pdf.ln(8)
+            
             # pdf.cell(w=0, h=5, txt='Crack number {}'.format(i + 1), ln=1)
             # pdf.cell(w=0, h=5, txt='The detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall'), ln=1)
             # pdf.cell(w=0, h=5, txt=f'Crack density: {crack_density:.2f}%', ln=1)
@@ -794,9 +795,9 @@ for dji in djis:
             # else:
             #     pdf.cell(w=0, h=5, txt='Severity index for this crack: Not in the interested area', ln=1)
             
-            pdf.set_xy(current_x + effective_page_width*1/3, current_y)
+            pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
             if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
-                pdf.multi_cell(w=effective_page_width*2/3, h=5, txt='Crack number {}'.format(i + 1)
+                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +f'\nCrack density: {crack_density:.2f}%'
                 +f'\nCrack width: {actual_width:.2f} mm'
@@ -805,8 +806,9 @@ for dji in djis:
                 +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +'\nSeverity index for this crack: {}'.format(severity_index)
                 +'\nSuggested corrective action: {}'.format(severity_dict[severity_index]))
+                pdf.ln(8)
             else:
-                pdf.multi_cell(w=effective_page_width*2/3, h=5, txt='Crack number {}'.format(i + 1)
+                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +f'\nCrack density: {crack_density:.2f}%'
                 +f'\nCrack width: {actual_width:.2f} mm'
@@ -814,9 +816,12 @@ for dji in djis:
                 +'\nConfiguration: {}'.format(configuration)
                 +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +'\nSeverity index for this crack: Not in the interested area')
+                pdf.ln(8)
 
     else:
         print('No crack detected')
         print('=' * 30)
+        pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='No crack detected')
+        pdf.ln(8)
 
     pdf.output(f'./example.pdf', 'F')
