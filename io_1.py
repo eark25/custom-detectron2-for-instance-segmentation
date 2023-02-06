@@ -12,7 +12,7 @@ classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
 device = 'cuda:3'
 # djis = ['0243', '0256', '0262', '0269', '0326']
-djis = ['0269']
+djis = ['0256']
 test_scale = 256
 thresh = 0.001
 ratios = [1.0, 2.0]
@@ -352,9 +352,10 @@ for dji in djis:
     # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
     pdf.image('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), x = None, y = None, w = effective_page_width, h = 0, type = 'JPEG')
-    pdf.ln(8)
+    pdf.ln(10)
 
     if len(instances) != 0:
+        last_page = 1
         for i, polygons in instances.items():
         # for i, polygon in enumerate(instances):
             print('Processing...')
@@ -476,6 +477,8 @@ for dji in djis:
             current_y = pdf.get_y()
             pdf.image("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), x = None, y = None, w = effective_page_width/3 + 5, h = 0, type = 'PNG')    
             # pdf.ln(8)
+            # get the page number that the specific crack thumbnail is printed to
+            current_page = pdf.page_no()
 
             # angle for configuration and position
             theta = angles[i] # example angle in degrees
@@ -794,8 +797,16 @@ for dji in djis:
             
             # else:
             #     pdf.cell(w=0, h=5, txt='Severity index for this crack: Not in the interested area', ln=1)
-            
-            pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
+
+            # if 1 == 1
+            if current_page == last_page:
+                pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
+            else:
+                print('use this')
+                # current_x = pdf.get_x()
+                # current_y = pdf.get_y()
+                # pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
+                pdf.set_xy(pdf.l_margin + effective_page_width*1/3 + 10, pdf.t_margin)
             if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
                 pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
@@ -806,7 +817,6 @@ for dji in djis:
                 +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +'\nSeverity index for this crack: {}'.format(severity_index)
                 +'\nSuggested corrective action: {}'.format(severity_dict[severity_index]))
-                pdf.ln(8)
             else:
                 pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
@@ -816,12 +826,13 @@ for dji in djis:
                 +'\nConfiguration: {}'.format(configuration)
                 +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +'\nSeverity index for this crack: Not in the interested area')
-                pdf.ln(8)
+            last_page = pdf.page_no()
+            pdf.ln(10)
 
     else:
         print('No crack detected')
         print('=' * 30)
         pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='No crack detected')
-        pdf.ln(8)
+        pdf.ln(10)
 
-    pdf.output(f'./example.pdf', 'F')
+    pdf.output(f'./{dji}.pdf', 'F')
