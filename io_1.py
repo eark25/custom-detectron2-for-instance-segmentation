@@ -11,10 +11,10 @@ checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_8
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
 device = 'cuda:3'
-# djis = ['0243', '0256', '0262', '0269', '0326']
-djis = ['0256']
+djis = ['0243', '0256', '0262', '0269', '0326']
+# djis = ['0256']
 test_scale = 256
-thresh = 0.001
+thresh = 0.001 # 0.1%
 ratios = [1.0, 2.0]
 
 img_norm_cfg = dict(
@@ -338,7 +338,7 @@ for dji in djis:
     outputs= predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
     # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
-    out, instances = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
+    out, instances, confidences = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
     cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3_no_pca.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), np.array(out.get_image()[:, :, ::-1]))
     # print(outputs) # use these polygons to find skeletons
     # print(instances)
@@ -359,7 +359,7 @@ for dji in djis:
         for i, polygons in instances.items():
         # for i, polygon in enumerate(instances):
             print('Processing...')
-            print('Crack number {}'.format(i + 1))
+            print('Crack number {} (confidence score: {})'.format(i + 1, confidences[i].split()[1]))
             # create palette image from output
             img = np.uint8(img_with_palette[:, :, ::-1])
             # print(img)
@@ -802,13 +802,13 @@ for dji in djis:
             if current_page == last_page:
                 pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
             else:
-                print('use this')
+                # print('use this')
                 # current_x = pdf.get_x()
                 # current_y = pdf.get_y()
                 # pdf.set_xy(current_x + effective_page_width*1/3 + 10, current_y)
                 pdf.set_xy(pdf.l_margin + effective_page_width*1/3 + 10, pdf.t_margin)
             if classes[max_index] == 'floor' or classes[max_index] == 'column' or classes[max_index] == 'wall' or classes[max_index] == 'background':
-                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
+                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {} (confidence score: {})'.format(i + 1, confidences[i].split()[1])
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +f'\nCrack density: {crack_density:.2f}%'
                 +f'\nCrack width: {actual_width:.2f} mm'
@@ -818,7 +818,7 @@ for dji in djis:
                 +'\nSeverity index for this crack: {}'.format(severity_index)
                 +'\nSuggested corrective action: {}'.format(severity_dict[severity_index]))
             else:
-                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {}'.format(i + 1)
+                pdf.multi_cell(w=effective_page_width*2/3 - 15, h=5, txt='Crack number {} (confidence score: {})'.format(i + 1, confidences[i].split()[1])
                 +'\nThe detected crack is on {} component in this image.'.format(classes[max_index] if classes[max_index] != 'background' else 'wall')
                 +f'\nCrack density: {crack_density:.2f}%'
                 +f'\nCrack width: {actual_width:.2f} mm'

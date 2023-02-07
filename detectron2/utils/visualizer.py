@@ -252,7 +252,7 @@ def _create_text_labels(classes, scores, class_names, is_crowd=None):
         if labels is None:
             labels = ["{:.0f}%".format(s * 100) for s in scores]
         else:
-            labels = ["{} {:.0f}%".format(l, s * 100) for l, s in zip(labels, scores)]
+            labels = ["{} {:.2f}%".format(l, s * 100) for l, s in zip(labels, scores)] # <<<<<
     if labels is not None and is_crowd is not None:
         labels = [l + ("|crowd" if crowd else "") for l, crowd in zip(labels, is_crowd)]
     return labels
@@ -436,7 +436,7 @@ class Visualizer:
             )
             alpha = 0.3
 
-        self.output, instances = self.overlay_instances( # <<<<<<<<<<
+        self.output, instances, confidences = self.overlay_instances( # <<<<<<<<<<
             masks=masks,
             boxes=boxes,
             labels=labels,
@@ -444,7 +444,7 @@ class Visualizer:
             assigned_colors=colors,
             alpha=alpha,
         )
-        return self.output, instances # <<<<<<<<<<<<<
+        return self.output, instances, confidences # <<<<<<<<<<<<<
 
     def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8):
         """
@@ -657,6 +657,7 @@ class Visualizer:
         """
         num_instances = 0
         instances = {} # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        confidences = []
         if boxes is not None:
             boxes = self._convert_boxes(boxes)
             num_instances = len(boxes)
@@ -677,7 +678,7 @@ class Visualizer:
         if assigned_colors is None:
             assigned_colors = [random_color(rgb=True, maximum=1) for _ in range(num_instances)]
         if num_instances == 0:
-            return self.output, instances # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            return self.output, instances, confidences # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         if boxes is not None and boxes.shape[1] == 5:
             return self.overlay_rotated_instances(
                 boxes=boxes, labels=labels, assigned_colors=assigned_colors
@@ -716,6 +717,7 @@ class Visualizer:
                 instances[i] = segment_list
 
             if labels is not None:
+                confidences.append(labels[i]) # <<<<<<<<<<<<<
                 # first get a box
                 if boxes is not None:
                     x0, y0, x1, y1 = boxes[i]
@@ -765,7 +767,7 @@ class Visualizer:
             for keypoints_per_instance in keypoints:
                 self.draw_and_connect_keypoints(keypoints_per_instance)
 
-        return self.output, instances # <<<<<<<<<<<<<<<<<<<<<<
+        return self.output, instances, confidences # <<<<<<<<<<<<<<<<<<<<<<
 
     def overlay_rotated_instances(self, boxes=None, labels=None, assigned_colors=None):
         """
