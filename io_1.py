@@ -5,16 +5,18 @@ from mmseg.models import build_segmentor
 import mmcv
 from mmcv.runner import load_checkpoint
 import numpy as np
+from timeit import default_timer as timer
+start = timer()
 
 config_file = '/root/mmsegmentation/configs/hrnet/myhrnet_imgnet_CLAHE_test.py'
 checkpoint_file = '/root/mmsegmentation/hrnet_imgnet_CLAHE_run/best_mIoU_epoch_894.pth'
 classes = ('background', 'wall', 'floor', 'column', 'opening', 'facade/deco')
 palette = [[128, 128, 128], [129, 127, 38], [120, 69, 125], [53, 125, 34], [0, 11, 123], [118, 20, 12]]
-device = 'cuda:3'
-djis = ['0243', '0256', '0262', '0269', '0326']
+device = 'cuda:2'
+djis = ['DJI_0267'] #, 'DJI_0292', 'DJI_0325', 'DJI_0431', 'DJI_0434']
 # djis = ['0256']
 test_scale = 256
-thresh = 0.001 # 0.1%
+thresh = 0.005 # 0.5%
 ratios = [1.0, 2.0]
 
 img_norm_cfg = dict(
@@ -290,6 +292,14 @@ predictor = Predictor(cfg)
 from detectron2.utils.visualizer import ColorMode, Visualizer
 from fpdf import FPDF
 
+# loop test
+import os
+
+folder_path = '/root/detectron2/ForTest'
+
+# for filename in os.listdir(folder_path):
+#     input = os.path.join(folder_path, filename)
+#     dji = os.path.splitext(filename)[0]
 for dji in djis:
     pdf = FPDF()
     pdf.add_page()
@@ -306,7 +316,7 @@ for dji in djis:
     # input = '/root/detectron2/20210826_ili_rivervale_mall_-3a.jpg'
     # input = '/root/detectron2/crack-on-facade-stock-photograph_csp10679891.jpg'
     # input = '/root/detectron2/output_3/crack-facade-wall-structure-plaster-details-682x1024.jpg'
-    input = '/root/detectron2/DJI_{}.JPG'.format(dji)
+    input = '/root/detectron2/ForTest/{}.JPG'.format(dji)
     # input = '/root/detectron2/crack_imgs/test/images/DeepCrack_11177.jpg'
     # input = '/root/detectron2/input_patches/0269_patch_{}.jpg'.format(i)
     result = inference_segmentor(model, input)
@@ -339,7 +349,7 @@ for dji in djis:
     # print(outputs["instances_vis"].to("cpu"))
     # use more relaxed mask thresholding prediction for better visualization
     out, instances, confidences = v.draw_instance_predictions(outputs["instances_vis"].to("cpu"))
-    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3_no_pca.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), np.array(out.get_image()[:, :, ::-1]))
+    # cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3_no_pca.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), np.array(out.get_image()[:, :, ::-1]))
     # print(outputs) # use these polygons to find skeletons
     # print(instances)
     # print(len(instances))
@@ -348,10 +358,10 @@ for dji in djis:
 
     # apply rules here
     
-    cv2.imwrite('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
+    cv2.imwrite('{}/for_test/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), out)
     # cv2.imwrite('output_patches/0269_{}_{}_mt0.4_patch_{}.jpg'.format(cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, i), out)
 
-    pdf.image('{}/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), x = None, y = None, w = effective_page_width, h = 0, type = 'JPEG')
+    pdf.image('{}/for_test/{}_{}_{}_mt0.4_max1024_nms0.3.jpg'.format(cfg.OUTPUT_DIR, dji, cfg.INPUT.MIN_SIZE_TEST, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST), x = None, y = None, w = effective_page_width, h = 0, type = 'JPEG')
     pdf.ln(10)
 
     if len(instances) != 0:
@@ -471,6 +481,7 @@ for dji in djis:
             pixel_per_mm = 0.39
             actual_width = crack_width * pixel_per_mm
             print(f'Crack width: {actual_width:.2f} mm')
+            # save current instance with its skeleton
             cv2.imwrite("bin_skel_semseg_2_{}_{}.png".format(dji, i + 1), bin_skel)
 
             current_x = pdf.get_x()
@@ -825,7 +836,8 @@ for dji in djis:
                 +f'\nAngle wrt horizontal line: {theta:.2f} degree'
                 +'\nConfiguration: {}'.format(configuration)
                 +'\nPosition: {} of the {}'.format(position, classes[max_index] if classes[max_index] != 'background' else 'wall')
-                +'\nSeverity index for this crack: Not in the interested area')
+                +'\nSeverity index for this crack: Not in the interested area'
+                +'\n ')
             last_page = pdf.page_no()
             pdf.ln(10)
 
@@ -836,3 +848,6 @@ for dji in djis:
         pdf.ln(10)
 
     pdf.output(f'./{dji}.pdf', 'F')
+
+end = timer()
+print("Elapsed Time: ", end - start)
